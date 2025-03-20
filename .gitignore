@@ -1,0 +1,48 @@
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.pyo
+*.swp
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+
+# If you are using Docker:
+*.env
+
+# PyCharm specific files
+.idea/
+
+# VS Code specific files
+.vscode/
+
+# Virtual environment
+venv/
+.env/
+env/
+ENV/
+
+# macOS-specific files
+.DS_Store
+mypy.ini
+ruff.toml
+
+# Celery
+celerybeat-schedule
+celeryev.pid
+
+# nginx
+certbot_letsencrypt/
+certbot_webroot/
+remotedev_nginx.conf

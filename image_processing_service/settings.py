@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_celery_beat",
+    "django_celery_results",
 ]
 
 MIDDLEWARE = [
@@ -146,3 +148,11 @@ if DEBUG and REMOTE_DEBUGGING_PORT:
         print(f"Debugger is listening on port {DEBUG_PORT}")
     except Exception as e:
         print(f"debugpy not available: {e}")
+
+# Celery settings
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = "django_celery_results.backends.database:DatabaseBackend"
+
+# Celery beat settings
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_TIMEZONE = "Europe/Istanbul"

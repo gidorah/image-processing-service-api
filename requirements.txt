@@ -11,4 +11,3 @@ psycopg2-binary==2.9.10
 debugpy==1.8.13
 django-celery-beat==2.7.0
 django-redis==5.4.0
-django-celery-results==2.5.1

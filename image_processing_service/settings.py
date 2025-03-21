@@ -10,12 +10,16 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Create a logger for this file
+logger = logging.getLogger(__name__)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -54,6 +58,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "image_processing_service.middleware.RequestLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "image_processing_service.urls"
@@ -157,10 +162,78 @@ CELERY_RESULT_BACKEND = "django_celery_results.backends.database:DatabaseBackend
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "Europe/Istanbul"
 
+# Logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S.%fZ",
+        },
+    },
+    "filters": {
+        "require_debug_false": {
+            "()": "django.utils.log.RequireDebugFalse",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "logstash": {
+            "level": "INFO",
+            "class": "image_processing_service.logstash_handler.RobustHTTPHandler",
+            "host": f"{os.environ.get('LOGSTASH_HOST', 'logstash')}:{os.environ.get('LOGSTASH_PORT', '5044')}",
+            "url": "/",
+            "method": "POST",
+            "formatter": "json",
+        },
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console", "logstash"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django": {
+            "handlers": ["console", "logstash"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console", "logstash"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "api": {
+            "handlers": ["console", "logstash"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "image_processing_service": {
+            "handlers": ["console", "logstash"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 SENTRY_DSN: str | None = os.environ.get("SENTRY_DSN")
 
 if SENTRY_DSN:
-    print("Sentry DSN is set, initializing Sentry SDK")
+    logger.info("Sentry DSN is set, initializing Sentry SDK")
     import sentry_sdk
 
     sentry_sdk.init(

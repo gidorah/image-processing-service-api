@@ -1,0 +1,21 @@
+## Default Elasticsearch configuration
+cluster.name: "docker-cluster"
+network.host: 0.0.0.0
+
+# Disable security features for local development
+xpack.security.enabled: false
+discovery.type: single-node
+
+# Disable memory locking to prevent memory issues
+bootstrap.memory_lock: false
+
+# HTTP settings
+http.port: 9200
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+http.cors.allow-headers: X-Requested-With, X-Auth-Token, Content-Type, Content-Length, Authorization
+
+# Thread pool settings
+thread_pool.search.queue_size: 500
+thread_pool.write.queue_size: 500

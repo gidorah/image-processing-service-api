@@ -1,5 +1,4 @@
 services:
-
   django:
     build:
       context: .
@@ -16,6 +15,17 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=5044
+      - ELASTIC_HOST=elasticsearch
+      - ELASTIC_PORT=9200
+      - ELASTIC_USER=${ELASTIC_USER:-elastic}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    depends_on:
+      - db
+      - redis
+      - elasticsearch
+      - logstash
 
   db:
     image: postgres:latest
@@ -36,28 +46,75 @@ services:
       - redis_data:/data
     command: redis-server --requirepass ${REDIS_PASSWORD}
 
-  # worker:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.image_processing_worker
-  #   command: celery -A image_processing_service worker -l info --hostname=image_processing_worker@%%h
-  #   environment:
-  #     - DJANGO_SETTINGS_MODULE=image_processing_service.settings
-  #     - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-  #   volumes:
-  #     - .:/app
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - ELASTIC_USER=${ELASTIC_USER:-elastic}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 1g
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./compose/elk/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
-  # beat:
-  #   build: .
-  #   command: celery -A image_processing_service beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-  #   environment:
-  #     - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-  #   depends_on:
-  #     - redis
-  #     - db
-  #   volumes:
-  #     - .:/app
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.2
+    volumes:
+      - ./compose/elk/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./compose/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    environment:
+      - ELASTIC_HOST=elasticsearch
+      - ELASTIC_PORT=9200
+      - ELASTIC_USER=${ELASTIC_USER:-elastic}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    ports:
+      - "5044:5044"
+      - "5044:5044/udp"
+      - "9600:9600"
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9600/_node/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    volumes:
+      - ./compose/elk/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - KIBANA_SERVICE_TOKEN=${KIBANA_SERVICE_TOKEN}
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 volumes:
-  postgres-data: {}
-  redis_data: {}
+  elasticsearch-data:
+  postgres-data:
+  redis_data:

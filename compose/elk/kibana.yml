@@ -1,0 +1,22 @@
+---
+## Default Kibana configuration
+server.name: kibana
+server.host: "0.0.0.0"
+server.port: 5601
+
+# Elasticsearch connection
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.serviceAccountToken: "${KIBANA_SERVICE_TOKEN}"
+
+# Enable monitoring
+monitoring.ui.container.elasticsearch.enabled: true
+
+# Disable security telemetry
+telemetry.enabled: false
+
+# Increase logging level for development
+logging.root.level: info
+
+# Disable strict browser security requirements for local development
+csp.strict: false
+csp.warnLegacyBrowsers: false

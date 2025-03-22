@@ -1,0 +1,25 @@
+filebeat.inputs:
+  - type: container
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+  - type: log
+    paths:
+      - /var/log/django/*.log #Path for reading django logs.
+    fields:
+      type: django-logs  # Add a custom field to distinguish Django logs
+    fields_under_root: true #Puts fields on root level
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  setup.template.overwrite: true     #VERY IMPORTANT.
+
+#Optional setup for processors
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_kubernetes_metadata: ~

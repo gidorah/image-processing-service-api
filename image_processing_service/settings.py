@@ -178,3 +178,52 @@ if SENTRY_DSN:
         # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
         send_default_pii=True,
     )
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file": {
+            "level": "DEBUG",  # Log everything to the file
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(
+                "/var/log/django", "django.log"
+            ),  # Log inside the mounted volume
+            "maxBytes": 1024 * 1024 * 15,  # 15MB
+            "backupCount": 5,  # Keep 5 rotated log files
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],  # Logs both to console and file
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "api": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        # You can add more specific loggers for your apps here
+        # 'my_app': {
+        #     'handlers': ['file'],
+        #     'level': 'DEBUG',
+        # },
+    },
+}

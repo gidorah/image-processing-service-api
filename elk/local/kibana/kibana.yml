@@ -1,0 +1,3 @@
+server.name: kibana
+server.host: "0" # Listen on all interfaces (within the container)
+elasticsearch.hosts: [ "http://elasticsearch:9200" ]

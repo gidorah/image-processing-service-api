@@ -215,6 +215,11 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": True,
         },
+        "api": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
         # You can add more specific loggers for your apps here
         # 'my_app': {
         #     'handlers': ['file'],

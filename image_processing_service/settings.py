@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_celery_beat",
     "django_celery_results",
+    "api",
+    "image_processor",
 ]
 
 MIDDLEWARE = [
@@ -181,6 +183,8 @@ if SENTRY_DSN:
         send_default_pii=True,
     )
 
+LOG_FILE_PATH = os.getenv("LOG_FILE_PATH", "/var/log/django/django.log")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -203,9 +207,7 @@ LOGGING = {
         "file": {
             "level": "DEBUG",  # Log everything to the file
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": os.path.join(
-                "/var/log/django", "django.log"
-            ),  # Log inside the mounted volume
+            "filename": LOG_FILE_PATH,  # Log inside the mounted volume
             "maxBytes": 1024 * 1024 * 15,  # 15MB
             "backupCount": 5,  # Keep 5 rotated log files
             "formatter": "verbose",

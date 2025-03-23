@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 User = get_user_model()
@@ -15,6 +16,14 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("username", "password")
+
+    def validate(self, attrs):
+        """
+        Validate the password strength.
+        """
+        user = User(username=attrs.get("username"))
+        validate_password(attrs["password"], user)
+        return attrs
 
     def create(self, validated_data) -> AbstractUser:
         user = User.objects.create_user(

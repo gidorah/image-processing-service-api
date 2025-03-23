@@ -24,9 +24,9 @@ class User(AbstractUser):
     pass
 
 
-class Image(models.Model):
+class BaseImage(models.Model):
     """
-    Image model to store both original and transformed images
+    Base image model to create SourceImage and TransformedImage models
     """
 
     file_name = models.CharField(
@@ -38,15 +38,33 @@ class Image(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_image = models.ForeignKey(
-        "Image", on_delete=models.CASCADE, null=True
-    )  # If this image is a transformation, this field will point to the original image
-    transformation_task = models.ForeignKey(
-        "TransformationTask", on_delete=models.CASCADE, null=True
-    )  # If this image is a transformation, this field will point to the transformation task
 
-    def __str__(self):
-        return f"{self.file_name} - {self.owner}: {self.description}"
+    def __str__(self) -> str:
+        return f"{self.owner} - {self.file_name} : {self.description}"
+
+    class Meta:
+        abstract = True
+
+
+class SourceImage(BaseImage):
+    """
+    Image model to store both original images
+    """
+
+    pass
+
+
+class TransformedImage(BaseImage):
+    """
+    Image model to store transformed images
+    """
+
+    source_image = models.ForeignKey(
+        SourceImage, on_delete=models.CASCADE, null=False
+    )  # Original image
+    transformation_task = models.ForeignKey(
+        "TransformationTask", on_delete=models.CASCADE, null=False
+    )  # Task that transformed the image
 
 
 class TransformationTask(models.Model):
@@ -55,19 +73,23 @@ class TransformationTask(models.Model):
     which will be processed by the worker
     """
 
-    image = models.ForeignKey(Image, on_delete=models.CASCADE)  # Original image
-    user = models.ForeignKey(
+    owner = models.ForeignKey(
         User, on_delete=models.CASCADE
     )  # User who requested the transformation
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    original_image = models.ForeignKey(
+        SourceImage, on_delete=models.CASCADE
+    )  # Original image
+    result_image = models.ForeignKey(
+        TransformedImage,
+        on_delete=models.SET_NULL,
+        null=True,
+    )  # Transformed image
     status = models.CharField(
         max_length=20, default=TaskStatus.PENDING, choices=TaskStatus.choices
     )  # Status of the transformation task (PENDING, IN_PROGRESS, SUCCESS, FAILED, CANCELLED)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     transformations = models.JSONField()  # List of transformations to be applied
-    result = models.ForeignKey(
-        Image, on_delete=models.SET_NULL, null=True
-    )  # Transformed image
 
-    def __str__(self):
-        return f"{self.image.file_name} - {self.status}"
+    def __str__(self) -> str:
+        return f"{self.original_image.file_name} - {self.status}"

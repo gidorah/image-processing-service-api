@@ -9,6 +9,7 @@ __pycache__/
 
 # Django stuff:
 *.log
+*.log.*
 *.pot
 *.pyc
 *.pyo
@@ -46,3 +47,6 @@ celeryev.pid
 certbot_letsencrypt/
 certbot_webroot/
 remotedev_nginx.conf
+
+# posting collection
+posting-collection/

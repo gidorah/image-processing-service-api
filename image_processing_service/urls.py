@@ -31,4 +31,9 @@ urlpatterns = [
     path("api/register/", views.register_user, name="register"),
     path("api/login/", views.login_user, name="login"),
     path("api/images/", views.SourceImageListView.as_view(), name="source_image_list"),
+    path(
+        route="api/images/upload/",
+        view=views.upload_image,
+        name="source_image_upload",
+    ),
 ]

@@ -85,3 +85,19 @@ class SourceImageSerializer(serializers.ModelSerializer):
             "url": {"required": False},
             "metadata": {"required": False},
         }
+
+
+class UploadImageSerializer(serializers.ModelSerializer):
+    """
+    Serializer for uploading an image.
+    """
+
+    class Meta:
+        model = SourceImage
+        fields = ["file", "file_name", "description"]
+        read_only_fields = ("owner",)
+        extra_kwargs = {
+            "file": {"required": True},
+            "file_name": {"required": True},
+            "description": {"required": True},
+        }

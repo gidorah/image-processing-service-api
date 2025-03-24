@@ -32,6 +32,7 @@ class BaseImage(models.Model):
     Base image model to create SourceImage and TransformedImage models
     """
 
+    file = models.ImageField(upload_to="images/")  # Image file
     file_name = models.CharField(
         max_length=255
     )  # Original file name | for display purposes only

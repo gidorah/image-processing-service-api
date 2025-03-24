@@ -5,7 +5,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.models import SourceImage, User
 from api.permissions import IsOwner
-from api.serializers import LoginSerializer, RegisterSerializer, SourceImageSerializer
+from api.serializers import (
+    LoginSerializer,
+    RegisterSerializer,
+    SourceImageSerializer,
+    UploadImageSerializer,
+)
 
 
 def get_tokens_for_user(user) -> dict[str, str]:
@@ -72,3 +77,18 @@ class SourceImageListView(generics.ListAPIView):
     queryset = SourceImage.objects.all()
     serializer_class = SourceImageSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def upload_image(request) -> Response:
+    """
+    API view for uploading an image.
+    """
+
+    serializer = UploadImageSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save(owner=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -106,3 +106,13 @@ class UploadImageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["metadata"] = extract_metadata(image_file=validated_data["file"])
         return super().create(validated_data)
+
+    def validate_file(self, value):
+        """
+        Validate the file type.
+        """
+        if value.content_type not in ["image/jpeg", "image/png"]:
+            raise serializers.ValidationError(
+                "Invalid file type. Expected a JPEG or PNG file.", code="invalid"
+            )
+        return value

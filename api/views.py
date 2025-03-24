@@ -3,8 +3,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from api.models import User
-from api.serializers import LoginSerializer, RegisterSerializer
+from api.models import SourceImage, User
+from api.permissions import IsOwner
+from api.serializers import LoginSerializer, RegisterSerializer, SourceImageSerializer
 
 
 def get_tokens_for_user(user) -> dict[str, str]:
@@ -61,3 +62,13 @@ def login_user(request) -> Response:
             status=status.HTTP_200_OK,
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SourceImageListView(generics.ListAPIView):
+    """
+    API view for listing and source images.
+    """
+
+    queryset = SourceImage.objects.all()
+    serializer_class = SourceImageSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]

@@ -53,7 +53,8 @@ def login_user(request) -> Response:
         return Response(
             {
                 "user": {
-                    serializer.validated_data["username"],
+                    "id": serializer.validated_data["user"].id,
+                    "username": serializer.validated_data["user"].username,
                 },
                 "token": token,
             },

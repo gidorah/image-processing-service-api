@@ -36,7 +36,7 @@ def register_user(request) -> Response:
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes(permission_classes=[permissions.AllowAny])
 def login_user(request) -> Response:
     """

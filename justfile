@@ -33,6 +33,11 @@ prune *args:
 logs *args:
     @docker compose logs -f {{args}}
 
+# up_services: Start up services except for the django service.
+up_services:
+    @echo "Starting up services except for the django service..."
+    @docker compose up -d --remove-orphans --scale django=0
+
 # # staging_build: Build staging image.
 # staging_build:
 #     @echo "Building staging image..."

@@ -3,6 +3,8 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from api.models import SourceImage
+
 User = get_user_model()
 
 
@@ -68,3 +70,18 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class SourceImageSerializer(serializers.ModelSerializer):
+    """
+    Serializer for SourceImage model.
+    """
+
+    class Meta:
+        model = SourceImage
+        fields = ["id", "file_name", "description", "url", "metadata", "owner"]
+        read_only_fields = ("owner", "id")
+        extra_kwargs = {
+            "url": {"required": False},
+            "metadata": {"required": False},
+        }

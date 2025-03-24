@@ -21,6 +21,9 @@ class User(AbstractUser):
     to upcoming authentication requirements
     """
 
+    def __str__(self) -> str:
+        return self.username
+
     pass
 
 
@@ -34,7 +37,7 @@ class BaseImage(models.Model):
     )  # Original file name | for display purposes only
     description = models.TextField()  # User provided description
     url = models.URLField()  # Object storage URL
-    metadata = models.JSONField()  # Metadata about the image
+    metadata = models.JSONField(blank=True, null=True)  # Metadata about the image
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)

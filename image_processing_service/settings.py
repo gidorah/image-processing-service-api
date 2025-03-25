@@ -296,3 +296,7 @@ LOGGING = {
         # },
     },
 }
+
+# Validation settings
+
+IMAGE_MAX_PIXEL_SIZE = os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096)

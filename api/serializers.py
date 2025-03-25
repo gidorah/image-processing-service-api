@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
@@ -109,10 +110,22 @@ class UploadImageSerializer(serializers.ModelSerializer):
 
     def validate_file(self, value):
         """
-        Validate the file type.
+        Validate the file type and size.
         """
+
+        # Validate the file type
         if value.content_type not in ["image/jpeg", "image/png"]:
             raise serializers.ValidationError(
                 "Invalid file type. Expected a JPEG or PNG file.", code="invalid"
+            )
+
+        # Validate the file size
+        if (
+            value.image.width > settings.IMAGE_MAX_PIXEL_SIZE
+            or value.image.height > settings.IMAGE_MAX_PIXEL_SIZE
+        ):
+            raise serializers.ValidationError(
+                f"Invalid image pixel size. Expected a file with a maximum size of {settings.IMAGE_MAX_PIXEL_SIZE} pixels on each side.",
+                code="invalid",
             )
         return value

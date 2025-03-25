@@ -1,5 +1,9 @@
+import os
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class TaskStatus(models.TextChoices):
@@ -27,12 +31,30 @@ class User(AbstractUser):
     pass
 
 
+def unique_image_path(instance, filename):
+    """
+    Custom image path to avoid duplicate image names
+    Because when we upload the same image twice,
+    the second upload will overwrite the first one on
+    the object storage
+    """
+
+    # Extract the file extension from the original filename
+    ext = filename.split(".")[-1]
+
+    # Generate a unique filename using UUID
+    unique_filename = f"{uuid.uuid4()}.{ext}"
+
+    # Return the full path (relative to storage root)
+    return os.path.join("images", unique_filename)
+
+
 class BaseImage(models.Model):
     """
     Base image model to create SourceImage and TransformedImage models
     """
 
-    file = models.ImageField(upload_to="images/")  # Image file
+    file = models.ImageField(upload_to=unique_image_path)  # Image file
     file_name = models.CharField(
         max_length=255
     )  # Original file name | for display purposes only

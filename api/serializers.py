@@ -100,7 +100,7 @@ class UploadImageSerializer(serializers.ModelSerializer):
         read_only_fields = ("owner",)
         extra_kwargs = {
             "file": {"required": True},
-            "file_name": {"required": True},
+            "file_name": {"required": False},
             "description": {"required": True},
         }
 

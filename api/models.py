@@ -65,6 +65,12 @@ class BaseImage(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
 
+    def save(self, *args, **kwargs):
+        # Set name if not provided
+        if not self.file_name and self.file:
+            self.file_name = os.path.basename(self.file.name).split(".")[0]
+        super().save(*args, **kwargs)
+
     def __str__(self) -> str:
         return f"{self.owner} - {self.file_name} : {self.description}"
 

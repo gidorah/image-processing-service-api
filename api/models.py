@@ -3,7 +3,8 @@ import uuid
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.utils import timezone
+
+from utils.utils import extract_metadata
 
 
 class TaskStatus(models.TextChoices):
@@ -69,6 +70,10 @@ class BaseImage(models.Model):
         # Set name if not provided
         if not self.file_name and self.file:
             self.file_name = os.path.basename(self.file.name).split(".")[0]
+
+        # Extract and set metadata
+        if self.file:
+            self.metadata = extract_metadata(image_file=self.file.file)
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

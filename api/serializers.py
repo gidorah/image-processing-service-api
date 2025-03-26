@@ -80,7 +80,7 @@ class SourceImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SourceImage
-        fields = ["id", "file_name", "description", "url", "metadata", "owner"]
+        fields = ["id", "file_name", "description", "file", "owner"]
         read_only_fields = ("owner", "id")
         extra_kwargs = {
             "url": {"required": False},

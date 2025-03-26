@@ -60,7 +60,6 @@ class BaseImage(models.Model):
         max_length=255
     )  # Original file name | for display purposes only
     description = models.TextField()  # User provided description
-    url = models.URLField()  # Object storage URL
     metadata = models.JSONField(blank=True, null=True)  # Metadata about the image
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -74,7 +73,7 @@ class BaseImage(models.Model):
         # Extract and set metadata
         if self.file:
             self.metadata = extract_metadata(image_file=self.file.file)
-        super().save(*args, **kwargs)
+        super().save(*args, **kwargs)  # this is where the upload happens
 
     def __str__(self) -> str:
         return f"{self.owner} - {self.file_name} : {self.description}"

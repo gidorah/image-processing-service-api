@@ -162,7 +162,7 @@ class UploadImageSerializer(serializers.ModelSerializer):
         return value
 
 
-class TranformedImageListSerializer(serializers.ModelSerializer):
+class TransformedImageListSerializer(serializers.ModelSerializer):
     """
     Serializer for TranformedImage model for listing.
     """
@@ -177,9 +177,9 @@ class TranformedImageListSerializer(serializers.ModelSerializer):
         }
 
 
-class TranformedImageDetailSerializer(serializers.ModelSerializer):
+class TransformedImageDetailSerializer(serializers.ModelSerializer):
     """
-    Serializer for TranformedImage model for detail.
+    Serializer for TransformedImage model for detail.
     """
 
     class Meta:

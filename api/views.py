@@ -10,8 +10,8 @@ from api.serializers import (
     RegisterSerializer,
     SourceImageDetailSerializer,
     SourceImageListSerializer,
-    TranformedImageDetailSerializer,
-    TranformedImageListSerializer,
+    TransformedImageDetailSerializer,
+    TransformedImageListSerializer,
     UploadImageSerializer,
 )
 
@@ -113,7 +113,7 @@ class TransformedImageListView(generics.ListAPIView):
     """
 
     queryset = TransformedImage.objects.all()
-    serializer_class = TranformedImageListSerializer
+    serializer_class = TransformedImageListSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
 
@@ -123,5 +123,5 @@ class TransformedImageDetailView(generics.RetrieveAPIView):
     """
 
     queryset = TransformedImage.objects.all()
-    serializer_class = TranformedImageDetailSerializer
+    serializer_class = TransformedImageDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]

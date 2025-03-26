@@ -1,5 +1,15 @@
+import logging
+import os
+import uuid
+
+from botocore.exceptions import BotoCoreError, ClientError
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
+from api.exceptions import StorageUploadFailed
+from utils.utils import extract_metadata
+
+logger = logging.getLogger(__name__)
 
 
 class TaskStatus(models.TextChoices):
@@ -27,20 +37,58 @@ class User(AbstractUser):
     pass
 
 
+def unique_image_path(instance, filename):
+    """
+    Custom image path to avoid duplicate image names
+    Because when we upload the same image twice,
+    the second upload will overwrite the first one on
+    the object storage
+    """
+
+    # Extract the file extension from the original filename
+    ext = filename.split(".")[-1]
+
+    # Generate a unique filename using UUID
+    unique_filename = f"{uuid.uuid4()}.{ext}"
+
+    # Return the full path (relative to storage root)
+    return os.path.join("images", unique_filename)
+
+
 class BaseImage(models.Model):
     """
     Base image model to create SourceImage and TransformedImage models
     """
 
+    file = models.ImageField(upload_to=unique_image_path)  # Image file
     file_name = models.CharField(
         max_length=255
     )  # Original file name | for display purposes only
     description = models.TextField()  # User provided description
-    url = models.URLField()  # Object storage URL
     metadata = models.JSONField(blank=True, null=True)  # Metadata about the image
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        # Set name if not provided
+        if not self.file_name and self.file:
+            self.file_name = os.path.basename(self.file.name).split(".")[0]
+
+        # Extract and set metadata
+        if self.file:
+            self.metadata = extract_metadata(image_file=self.file.file)
+
+        try:
+            super().save(*args, **kwargs)  # S3 upload happens here
+        except (ClientError, BotoCoreError) as e:
+            logger.error(
+                f"S3 Upload Error for file {getattr(self.file, 'name', 'N/A')}: {e}",
+                exc_info=True,
+            )
+            raise StorageUploadFailed(
+                detail=f"Failed to upload {self.file.name} to S3. Please try again later."
+            ) from e
 
     def __str__(self) -> str:
         return f"{self.owner} - {self.file_name} : {self.description}"

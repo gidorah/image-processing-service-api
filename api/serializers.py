@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
@@ -79,9 +80,59 @@ class SourceImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SourceImage
-        fields = ["id", "file_name", "description", "url", "metadata", "owner"]
+        fields = ["id", "file_name", "description", "file", "owner"]
         read_only_fields = ("owner", "id")
         extra_kwargs = {
             "url": {"required": False},
             "metadata": {"required": False},
         }
+
+
+class UploadImageSerializer(serializers.ModelSerializer):
+    """
+    Serializer for uploading an image.
+    """
+
+    class Meta:
+        model = SourceImage
+        fields = ["file", "file_name", "description"]
+        read_only_fields = ("owner",)
+        extra_kwargs = {
+            "file": {"required": True},
+            "file_name": {"required": False},
+            "description": {"required": True},
+        }
+
+    def create(self, validated_data):
+        return super().create(validated_data)
+
+    def validate_file(self, value):
+        """
+        Validate the file type and size.
+        """
+
+        # Validate the file type
+        if value.content_type not in ["image/jpeg", "image/png"]:
+            raise serializers.ValidationError(
+                "Invalid file type. Expected a JPEG or PNG file.", code="invalid"
+            )
+
+        # Validate the file size
+        if (
+            value.image.width > settings.IMAGE_MAX_PIXEL_SIZE
+            or value.image.height > settings.IMAGE_MAX_PIXEL_SIZE
+        ):
+            raise serializers.ValidationError(
+                f"Invalid image pixel size. Expected a file with a maximum size of {settings.IMAGE_MAX_PIXEL_SIZE} pixels on each side.",
+                code="invalid",
+            )
+        if (
+            value.image.width < settings.IMAGE_MIN_PIXEL_SIZE
+            or value.image.height < settings.IMAGE_MIN_PIXEL_SIZE
+        ):
+            raise serializers.ValidationError(
+                f"Invalid image pixel size. Expected a file with a minimum size of {settings.IMAGE_MIN_PIXEL_SIZE} pixels on each side.",
+                code="invalid",
+            )
+
+        return value

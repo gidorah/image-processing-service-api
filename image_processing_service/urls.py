@@ -32,8 +32,23 @@ urlpatterns = [
     path("api/login/", views.login_user, name="login"),
     path("api/images/", views.SourceImageListView.as_view(), name="source_image_list"),
     path(
+        route="api/images/<int:pk>/",
+        view=views.SourceImageDetailView.as_view(),
+        name="source_image_detail",
+    ),
+    path(
         route="api/images/upload/",
         view=views.upload_image,
         name="source_image_upload",
+    ),
+    path(
+        route="api/images/transformed/",
+        view=views.TransformedImageListView.as_view(),
+        name="transformed_image_list",
+    ),
+    path(
+        route="api/images/transformed/<int:pk>/",
+        view=views.TransformedImageDetailView.as_view(),
+        name="transformed_image_detail",
     ),
 ]

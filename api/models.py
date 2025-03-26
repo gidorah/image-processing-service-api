@@ -1,10 +1,15 @@
+import logging
 import os
 import uuid
 
+from botocore.exceptions import BotoCoreError, ClientError
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from api.exceptions import StorageUploadFailed
 from utils.utils import extract_metadata
+
+logger = logging.getLogger(__name__)
 
 
 class TaskStatus(models.TextChoices):
@@ -73,7 +78,15 @@ class BaseImage(models.Model):
         # Extract and set metadata
         if self.file:
             self.metadata = extract_metadata(image_file=self.file.file)
-        super().save(*args, **kwargs)  # this is where the upload happens
+
+        try:
+            super().save(*args, **kwargs)  # S3 upload happens here
+        except (ClientError, BotoCoreError) as e:
+            logger.error(
+                f"S3 Upload Error for file {getattr(self.file, 'name', 'N/A')}: {e}",
+                exc_info=True,
+            )
+            raise StorageUploadFailed()
 
     def __str__(self) -> str:
         return f"{self.owner} - {self.file_name} : {self.description}"

@@ -300,3 +300,4 @@ LOGGING = {
 # Validation settings
 
 IMAGE_MAX_PIXEL_SIZE = os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096)
+IMAGE_MIN_PIXEL_SIZE = os.getenv("IMAGE_MIN_PIXEL_SIZE", 100)

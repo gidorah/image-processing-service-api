@@ -82,10 +82,6 @@ class SourceImageListSerializer(serializers.ModelSerializer):
         model = SourceImage
         fields = ["id", "file_name", "description", "file", "owner"]
         read_only_fields = ("owner", "id")
-        extra_kwargs = {
-            "url": {"required": False},
-            "metadata": {"required": False},
-        }
 
 
 class SourceImageDetailSerializer(serializers.ModelSerializer):
@@ -171,10 +167,6 @@ class TransformedImageListSerializer(serializers.ModelSerializer):
         model = TransformedImage
         fields = ["id", "file_name", "description", "file", "owner"]
         read_only_fields = ("owner", "id")
-        extra_kwargs = {
-            "url": {"required": False},
-            "metadata": {"required": False},
-        }
 
 
 class TransformedImageDetailSerializer(serializers.ModelSerializer):

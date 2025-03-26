@@ -126,4 +126,13 @@ class UploadImageSerializer(serializers.ModelSerializer):
                 f"Invalid image pixel size. Expected a file with a maximum size of {settings.IMAGE_MAX_PIXEL_SIZE} pixels on each side.",
                 code="invalid",
             )
+        if (
+            value.image.width < settings.IMAGE_MIN_PIXEL_SIZE
+            or value.image.height < settings.IMAGE_MIN_PIXEL_SIZE
+        ):
+            raise serializers.ValidationError(
+                f"Invalid image pixel size. Expected a file with a minimum size of {settings.IMAGE_MIN_PIXEL_SIZE} pixels on each side.",
+                code="invalid",
+            )
+
         return value

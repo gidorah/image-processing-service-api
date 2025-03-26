@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from api.models import SourceImage
+from api.models import SourceImage, TransformedImage
 
 User = get_user_model()
 
@@ -73,14 +73,34 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class SourceImageSerializer(serializers.ModelSerializer):
+class SourceImageListSerializer(serializers.ModelSerializer):
     """
-    Serializer for SourceImage model.
+    Serializer for SourceImage model for listing.
     """
 
     class Meta:
         model = SourceImage
         fields = ["id", "file_name", "description", "file", "owner"]
+        read_only_fields = ("owner", "id")
+
+
+class SourceImageDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializer for SourceImage model for detail.
+    """
+
+    class Meta:
+        model = SourceImage
+        fields = [
+            "id",
+            "file_name",
+            "description",
+            "file",
+            "owner",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
         read_only_fields = ("owner", "id")
         extra_kwargs = {
             "url": {"required": False},
@@ -136,3 +156,36 @@ class UploadImageSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+
+class TransformedImageListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for TranformedImage model for listing.
+    """
+
+    class Meta:
+        model = TransformedImage
+        fields = ["id", "file_name", "description", "file", "owner"]
+        read_only_fields = ("owner", "id")
+
+
+class TransformedImageDetailSerializer(serializers.ModelSerializer):
+    """
+    Serializer for TransformedImage model for detail.
+    """
+
+    class Meta:
+        model = TransformedImage
+        fields = [
+            "id",
+            "file_name",
+            "description",
+            "file",
+            "owner",
+            "metadata",
+            "created_at",
+            "updated_at",
+            "source_image",
+            "transformation_task",
+        ]
+        read_only_fields = ("owner", "id")

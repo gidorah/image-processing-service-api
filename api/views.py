@@ -3,12 +3,15 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from api.models import SourceImage, User
+from api.models import SourceImage, TransformedImage
 from api.permissions import IsOwner
 from api.serializers import (
     LoginSerializer,
     RegisterSerializer,
-    SourceImageSerializer,
+    SourceImageDetailSerializer,
+    SourceImageListSerializer,
+    TransformedImageDetailSerializer,
+    TransformedImageListSerializer,
     UploadImageSerializer,
 )
 
@@ -75,7 +78,17 @@ class SourceImageListView(generics.ListAPIView):
     """
 
     queryset = SourceImage.objects.all()
-    serializer_class = SourceImageSerializer
+    serializer_class = SourceImageListSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+class SourceImageDetailView(generics.RetrieveAPIView):
+    """
+    API view for retrieving a source image.
+    """
+
+    queryset = SourceImage.objects.all()
+    serializer_class = SourceImageDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
 
@@ -92,3 +105,23 @@ def upload_image(request) -> Response:
         serializer.save(owner=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TransformedImageListView(generics.ListAPIView):
+    """
+    API view for listing and transformed images.
+    """
+
+    queryset = TransformedImage.objects.all()
+    serializer_class = TransformedImageListSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+class TransformedImageDetailView(generics.RetrieveAPIView):
+    """
+    API view for retrieving a transformed image.
+    """
+
+    queryset = TransformedImage.objects.all()
+    serializer_class = TransformedImageDetailSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]

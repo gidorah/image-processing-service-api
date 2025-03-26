@@ -86,7 +86,9 @@ class BaseImage(models.Model):
                 f"S3 Upload Error for file {getattr(self.file, 'name', 'N/A')}: {e}",
                 exc_info=True,
             )
-            raise StorageUploadFailed()
+            raise StorageUploadFailed(
+                detail=f"Failed to upload {self.file.name} to S3. Please try again later."
+            ) from e
 
     def __str__(self) -> str:
         return f"{self.owner} - {self.file_name} : {self.description}"

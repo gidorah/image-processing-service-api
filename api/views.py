@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from api.models import SourceImage, TransformedImage
+from api.models import SourceImage, TransformationTask, TransformedImage
 from api.permissions import IsOwner
 from api.serializers import (
     LoginSerializer,
@@ -14,6 +14,7 @@ from api.serializers import (
     TransformedImageListSerializer,
     UploadImageSerializer,
 )
+from image_processor.tasks import apply_transformations
 
 
 def get_tokens_for_user(user) -> dict[str, str]:
@@ -125,3 +126,41 @@ class TransformedImageDetailView(generics.RetrieveAPIView):
     queryset = TransformedImage.objects.all()
     serializer_class = TransformedImageDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated, IsOwner])
+def create_transformed_image(request, pk):
+    """
+    API view for creating a transformed image.
+
+    Creates a new transformation task for the given image
+    and passes to the task queue. Returns the task ID for
+    task tracking.
+    """
+
+    source_image = SourceImage.objects.get(id=pk)
+
+    if not source_image:
+        return Response(
+            {"message": "Source image not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    transformations = request.data.get("transformations")
+
+    if not transformations:
+        return Response(
+            {"message": "No transformations provided"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    task = TransformationTask.objects.create(
+        original_image=source_image, owner=request.user, transformations=transformations
+    )
+
+    task.save()
+
+    apply_transformations.delay(task.id)
+
+    return Response({"task_id": task.id})

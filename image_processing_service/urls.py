@@ -51,4 +51,9 @@ urlpatterns = [
         view=views.TransformedImageDetailView.as_view(),
         name="transformed_image_detail",
     ),
+    path(
+        route="api/images/<int:pk>/transform/",
+        view=views.create_transformed_image,
+        name="create_transformed_image",
+    ),
 ]

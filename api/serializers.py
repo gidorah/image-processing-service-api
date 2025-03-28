@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from api.models import SourceImage, TransformedImage
+from api.models import SourceImage, TransformationTask, TransformedImage
 
 User = get_user_model()
 
@@ -189,3 +189,26 @@ class TransformedImageDetailSerializer(serializers.ModelSerializer):
             "transformation_task",
         ]
         read_only_fields = ("owner", "id")
+
+
+class TransformationTaskSerializer(serializers.ModelSerializer):
+    """
+    Serializer for TransformationTask model for detail.
+    """
+
+    class Meta:
+        model = TransformationTask
+        fields = [
+            "id",
+            "original_image",
+            "result_image",
+            "status",
+            "transformations",
+        ]
+        read_only_fields = (
+            "id",
+            "original_image",
+            "result_image",
+            "status",
+            "transformations",
+        )

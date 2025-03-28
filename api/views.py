@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -10,6 +10,7 @@ from api.serializers import (
     RegisterSerializer,
     SourceImageDetailSerializer,
     SourceImageListSerializer,
+    TransformationTaskSerializer,
     TransformedImageDetailSerializer,
     TransformedImageListSerializer,
     UploadImageSerializer,
@@ -164,3 +165,13 @@ def create_transformed_image(request, pk):
     apply_transformations.delay(task.id)
 
     return Response({"task_id": task.id})
+
+
+class TransformationTaskViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API view for listing and retrieving transformation tasks.
+    """
+
+    queryset = TransformationTask.objects.all()
+    serializer_class = TransformationTaskSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]

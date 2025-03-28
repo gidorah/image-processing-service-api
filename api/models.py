@@ -75,10 +75,6 @@ class BaseImage(models.Model):
         if not self.file_name and self.file:
             self.file_name = os.path.basename(self.file.name).split(".")[0]
 
-        # Extract and set metadata
-        if self.file:
-            self.metadata = extract_metadata(image_file=self.file.file)
-
         try:
             super().save(*args, **kwargs)  # S3 upload happens here
         except (ClientError, BotoCoreError) as e:

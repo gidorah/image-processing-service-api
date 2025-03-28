@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from api.models import SourceImage, TransformationTask, TransformedImage
+from utils.utils import extract_metadata
 
 User = get_user_model()
 
@@ -115,7 +116,7 @@ class UploadImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SourceImage
-        fields = ["file", "file_name", "description"]
+        fields = ["id", "file", "file_name", "description"]
         read_only_fields = ("owner",)
         extra_kwargs = {
             "file": {"required": True},
@@ -124,6 +125,8 @@ class UploadImageSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
+        # Extract and set metadata
+        validated_data["metadata"] = extract_metadata(image_file=validated_data["file"])
         return super().create(validated_data)
 
     def validate_file(self, value):

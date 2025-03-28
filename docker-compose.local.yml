@@ -44,11 +44,14 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/worker/Dockerfile
+    ports:
+      - "5679:5679"
     command: celery -A image_processing_service worker -l info --hostname=image_processing_worker@%%h
     environment:
       - DJANGO_SETTINGS_MODULE=image_processing_service.settings
       - CELERY_BROKER_URL=redis://@redis:6379/0
       - DB_HOST=db
+      - REMOTE_DEBUGGING_PORT=5679
     volumes:
       - .:/app
 

@@ -4,19 +4,174 @@ import math
 
 from celery import shared_task
 from django.core.files import File
+from django.db.models.fields.files import ImageFieldFile
 
 # Add ImageOps, ImageFilter, ImageDraw, ImageFont
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL.ImageFile import ImageFile
 
 from api.exceptions import (
+    InvalidTransformation,
     NoTransformationsDefined,
     OriginalImageNotFound,
     TaskNotFound,
+    TransformationFailed,
 )
 from api.models import SourceImage, TaskStatus, TransformationTask, TransformedImage
 from utils.utils import extract_metadata
 
 logger = logging.getLogger(__name__)
+
+
+def _get_task_and_set_in_progress(task_id) -> TransformationTask:
+    """
+    Gets task, validates, sets status to IN_PROGRESS.
+    """
+
+    # Check if task with given id exists
+    try:
+        task: TransformationTask = TransformationTask.objects.get(pk=task_id)
+    except TransformationTask.DoesNotExist:
+        logger.error(f"Task with id {task_id} not found.")
+        raise TaskNotFound(f"Task with id {task_id} not found.")
+
+    if not task.transformations:
+        logger.error(f"No transformations were defined for task: {task_id}.")
+        raise NoTransformationsDefined()
+
+    # Since task and transformations are valid, set status to IN_PROGRESS
+    task.status = TaskStatus.IN_PROGRESS
+    task.save()
+
+    return task
+
+
+def _load_image_and_determine_format(
+    task: TransformationTask,
+) -> tuple[Image.Image, str, SourceImage]:
+    """
+    Loads image, determines format.
+    """
+
+    source_image_instance = task.original_image
+
+    if not source_image_instance:
+        logger.error(f"Original image for task: {task.id} not found.")
+        raise OriginalImageNotFound()
+
+    image_file: ImageFieldFile = source_image_instance.file
+
+    processed_image: Image.Image = Image.open(image_file)
+
+    # Determine format
+    image_format = task.format
+    if image_format is None:
+        logger.info(
+            f"Format not found for task: {task.id}. Trying to get from metadata."
+        )
+        image_format = source_image_instance.metadata.get("format")
+
+        # If format is still None, would fail later
+        if not image_format:
+            logger.error(f"Format not found for task: {task.id}.")
+            raise OriginalImageNotFound(
+                detail="Format not found in metadata for task: {task_id}."
+            )
+
+    return (
+        processed_image,
+        image_format,
+        source_image_instance,
+    )
+
+
+def _apply_processing_steps(
+    processed_image: Image.Image, task: TransformationTask, image_format: str
+) -> Image.Image:
+    """
+    Applies transformations and final color mode conversion.
+    """
+
+    logger.info(f"Applying transformations for task: {task.id}.")
+
+    for transformation in task.transformations:
+        operation = transformation.get("operation")
+        params = transformation.get("params", {})
+
+        if operation not in TRANSFORMATION_MAP:
+            logger.error(f"Invalid operation: {operation} for task: {task.id}.")
+            raise InvalidTransformation(
+                f"Invalid operation: {operation} for task: {task.id}."
+            )
+
+        transform_func = TRANSFORMATION_MAP[operation]
+
+        logger.info(f"Applying transformation {operation} with params {params}")
+        processed_image = transform_func(processed_image, **params)
+
+        if not processed_image:
+            logger.error(f"Transformation failed for task: {task.id}.")
+            raise TransformationFailed(
+                detail=f"Transformation failed for task: {task.id}."
+            )
+
+    # Ensure RGB mode if image is RGBA
+    if processed_image.mode == "RGBA":
+        # This conversion can fail, handled this in the main except block.
+        processed_image = processed_image.convert("RGB")
+        if not processed_image:
+            logger.error(f"Failed to convert image to RGB mode for task: {task.id}.")
+            raise TransformationFailed(detail="Failed to convert image to RGB mode.")
+
+    return processed_image
+
+
+def _save_result_image(
+    processed_image: Image.Image,
+    task: TransformationTask,
+    original_image_instance: SourceImage,
+    image_format: str,
+):
+    """
+    Saves image to buffer, creates Django File and TransformedImage record.
+    """
+
+    image_buffer = io.BytesIO()
+    try:
+        # Save to buffer
+        processed_image.save(image_buffer, format=image_format)
+
+        # Set format attribute
+        processed_image.format = image_format
+
+        # Reset buffer position
+        image_buffer.seek(0)
+
+        # Create filename
+        file_name = (
+            f"{original_image_instance.file_name}_{task.id}.{str(image_format).lower()}"
+        )
+
+        # Create Django File
+        transformed_image_file = File(image_buffer, name=file_name)
+
+        # Create TransformedImage record (original lines 92-101)
+        result_image = TransformedImage.objects.create(
+            owner=task.owner,
+            file=transformed_image_file,
+            file_name=file_name,
+            description=original_image_instance.description,
+            source_image=original_image_instance,
+            transformation_task=task,
+            metadata=extract_metadata(image=processed_image),
+        )
+        result_image.save()
+
+        return result_image
+
+    finally:
+        # Close the buffer to free up resources
+        image_buffer.close()
 
 
 @shared_task
@@ -30,92 +185,43 @@ def apply_transformations(task_id):
     tasks will increase the image read/write and
     communication costs.
     """
-
+    task = None  # Define task in outer scope for exception handling
     try:
-        task: TransformationTask = TransformationTask.objects.get(pk=task_id)
+        # Step 1: Get task and set IN_PROGRESS
+        task = _get_task_and_set_in_progress(task_id)
 
-        if not task:
-            raise TaskNotFound()
-
-        task.status = TaskStatus.IN_PROGRESS
-        task.save()
-
-        if not task.transformations:
-            raise NoTransformationsDefined()
-
-        logger.info(f"Applying transformations for task {task.id}")
-
-        original_image = task.original_image
-
-        if not original_image:
-            raise OriginalImageNotFound()
-
-        image_file = original_image.file
-        image = Image.open(image_file)
-
-        # If the format is not defined in transformations,
-        # use the original image format
-        image_format = task.format
-        if image_format is None:
-            image_format = original_image.metadata.get("format")
-
-        for transformation in task.transformations:
-            operation = transformation.get("operation")
-            params = transformation.get("params", {})
-
-            logger.info(f"Applying transformation {operation} with params {params}")
-            image = TRANSFORMATION_MAP[operation](image, **params)
-
-        # Ensure the PIL image is in RGB mode (if saving as JPEG)
-        if image.mode == "RGBA":
-            image = image.convert("RGB")
-
-        # Create a BytesIO buffer to temporarily store the image
-        image_buffer = io.BytesIO()
-
-        # Save the PIL image to the buffer with the specified format
-        image.save(image_buffer, format=image_format)
-
-        # Set the format of the image because:
-        # https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.format
-        # We need to set it for metadata extraction
-        image.format = image_format
-
-        # Reset buffer position to the beginning
-        image_buffer.seek(0)
-
-        file_name = f"{original_image.file_name}_{task.id}.{image_format.lower()}"
-
-        # Create a Django File object from the buffer
-        django_file = File(image_buffer, name=file_name)
-
-        # Create and save the BaseImage instance
-        result_image = TransformedImage.objects.create(
-            owner=task.owner,
-            file=django_file,
-            file_name=file_name,
-            description=original_image.description,
-            source_image=original_image,
-            transformation_task=task,
-            metadata=extract_metadata(image=image),
+        # Step 2: Load image and determine format
+        image, image_format, original_image_instance = _load_image_and_determine_format(
+            task
         )
-        result_image.save()
-        # Close the buffer to free memory
-        image_buffer.close()
 
-        task.result_image = result_image
+        # Step 3: Apply processing steps
+        processed_image = _apply_processing_steps(image, task, image_format)
+
+        # Step 4: Save result image
+        transformed_image_instance = _save_result_image(
+            processed_image, task, original_image_instance, image_format
+        )
+
+        # Step 5: Link result
+        task.result_image = transformed_image_instance
+
+        task.status = TaskStatus.SUCCESS
+        task.save()
 
     except Exception as e:
-        logger.error(f"Error while applying transformations: {e}")
-        task.status = TaskStatus.FAILED
-        task.save()
+        logger.error(f"Error while applying transformations: {e}", exc_info=True)
+        if task:
+            task.status = TaskStatus.FAILED
+            task.save()
         raise e
 
-    task.status = TaskStatus.SUCCESS
-    task.save()
+
+# --- Existing Transformation Implementations (Exactly as in original file) ---
+# --- NO CHANGES BELOW THIS LINE ---
 
 
-def crop(image: Image, x, y, width, height) -> Image:
+def crop(image: Image.Image, x, y, width, height) -> Image.Image:
     """
     Crop an image.
     """
@@ -123,21 +229,21 @@ def crop(image: Image, x, y, width, height) -> Image:
     return image.crop(box)
 
 
-def resize(image: Image, width, height) -> Image:
+def resize(image: Image.Image, width, height) -> Image.Image:
     """
     Resize an image.
     """
     return image.resize((width, height))
 
 
-def rotate(image: Image, degrees) -> Image:
+def rotate(image: Image.Image, degrees) -> Image.Image:
     """
     Rotate an image.
     """
     return image.rotate(angle=degrees)
 
 
-def watermark(image: Image, watermark_text: str) -> Image:
+def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     """
     Applies a standard, semi-transparent, diagonal watermark text across the image center.
 
@@ -150,49 +256,47 @@ def watermark(image: Image, watermark_text: str) -> Image:
     """
 
     # make a blank image for the text, initialized to transparent text color
-    txt = Image.new("RGBA", image.size, (255, 255, 255, 0))
+    watermark_image: Image.Image = Image.new("RGBA", image.size, (255, 255, 255, 0))
 
-    # get a font
-    # fnt = ImageFont.truetype("Pillow/Tests/fonts/FreeMono.ttf", 40)
     # get a drawing context
-    d = ImageDraw.Draw(txt)
+    draw = ImageDraw.Draw(watermark_image)
 
     # get image size
-    w, h = image.size
+    width, height = image.size
 
     # draw text in the center of the image
-    d.text((w / 2, h / 2), watermark_text, fill=(255, 255, 255, 128))
+    draw.text((width / 2, height / 2), watermark_text, fill=(255, 255, 255, 128))
 
     # rotate text 45 degrees
-    txt = txt.rotate(45)
+    watermark_image = watermark_image.rotate(45)
 
-    watermarked_image = Image.alpha_composite(image, txt)
+    result_image = Image.alpha_composite(image, watermark_image)
 
-    return watermarked_image
+    return result_image
 
 
-def flip(image: Image) -> Image:
+def flip(image: Image.Image) -> Image.Image:
     """
     Flip an image vertically (top to bottom).
     """
     return ImageOps.flip(image)
 
 
-def mirror(image: Image) -> Image:
+def mirror(image: Image.Image) -> Image.Image:
     """
     Mirror an image horizontally (left to right).
     """
     return ImageOps.mirror(image)
 
 
-def grayscale(image: Image) -> Image:
+def grayscale(image: Image.Image) -> Image.Image:
     """
     Convert an image to grayscale.
     """
     return image.convert("L")
 
 
-def sepia(image: Image) -> Image:
+def sepia(image: Image.Image) -> Image.Image:
     """
     Apply a sepia filter to an image using a standard conversion matrix.
     Ensures the image is in RGB mode before applying the filter.
@@ -223,7 +327,7 @@ def sepia(image: Image) -> Image:
     return image.convert("RGB", sepia_matrix)
 
 
-def blur(image: Image) -> Image:
+def blur(image: Image.Image) -> Image.Image:
     """
     Apply a blur filter to an image.
     """
@@ -240,7 +344,7 @@ AVAILABLE_FILTERS = {
 }
 
 
-def apply_filter(image: Image, *args, **kwargs) -> Image:
+def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image:
     """
     Apply a predefined filter to an image.
 

@@ -50,20 +50,17 @@ def apply_transformations(task_id):
         image_file = original_image.file
         image = Image.open(image_file)
 
-        image_format = original_image.metadata.get("format")
+        # If the format is not defined in transformations,
+        # use the original image format
+        image_format = task.format
+        if image_format is None:
+            image_format = original_image.metadata.get("format")
 
-        # If the format is not defined, use the original image format
-        # as the default format. When saving the image, the format
-        # will be changed to the format specified in the task.
-        # Also remove the "change_format" transformation from the task
-        # because it's not a transformation function.
-        if "change_format" in task.transformations:
-            image_format = task.transformations["change_format"].get("format")
-            task.transformations.pop("change_format")
-
-        for transformation_key, transformation in task.transformations.items():
-            logger.info(f"Applying transformation {transformation_key}")
-            image = TRANSFORMATION_MAP[transformation_key](image, **transformation)
+        for transformation in task.transformations:
+            operation = transformation.get("operation")
+            params = transformation.get("params")
+            logger.info(f"Applying transformation {operation} with params {params}")
+            image = TRANSFORMATION_MAP[operation](image, **params)
 
         # Ensure the PIL image is in RGB mode (if saving as JPEG)
         if image.mode == "RGBA":

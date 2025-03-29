@@ -1,3 +1,5 @@
+from enum import StrEnum
+
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -196,24 +198,74 @@ class TransformedImageDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ("owner", "id")
 
 
+class ImageFormat(StrEnum):
+    """
+    Image format choices to validate the format of the image
+    """
+
+    JPEG = "JPEG"
+    PNG = "PNG"
+
+
 class TransformationTaskSerializer(serializers.ModelSerializer):
     """
     Serializer for TransformationTask model for detail.
+    Handles associating the original_image based on the pk from the URL context.
     """
 
     class Meta:
         model = TransformationTask
         fields = [
             "id",
-            "original_image",
+            "original_image",  # Keep for read operations
             "result_image",
             "status",
             "transformations",
+            "format",
         ]
         read_only_fields = (
             "id",
             "original_image",
             "result_image",
             "status",
-            "transformations",
-        )
+        )  # Make original_image read-only
+
+    def create(self, validated_data):
+        """
+        Create a TransformationTask, associating the SourceImage using the 'pk' from the context.
+        """
+        source_image_id = self.context.get("pk")
+        if not source_image_id:
+            raise serializers.ValidationError(
+                "Could not determine the source image ID from the context."
+            )
+
+        try:
+            source_image = SourceImage.objects.get(pk=source_image_id)
+            # Check ownership if necessary (though view permission should handle this)
+            request_user = self.context["request"].user
+            if source_image.owner != request_user:
+                raise serializers.ValidationError("You do not own this source image.")
+
+        except SourceImage.DoesNotExist:
+            raise serializers.ValidationError(
+                f"Source image with id {source_image_id} not found."
+            )
+
+        # Add owner and original_image to the validated_data before creating
+        validated_data["owner"] = request_user
+        validated_data["original_image"] = source_image
+        return super().create(validated_data)
+
+    def validate_format(self, value: str) -> str:
+        """
+        Validate the format of the image.
+        """
+        # Convert to uppercase for uniformity
+        # and to avoid case-sensitive comparison
+
+        if value.upper() not in ImageFormat.__members__:
+            raise serializers.ValidationError(
+                f"Invalid format. Expected one of {ImageFormat.__members__}."
+            )
+        return value

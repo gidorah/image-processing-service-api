@@ -129,6 +129,16 @@ class TransformedImageDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
 
+class TransformationTaskViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API view for listing and retrieving transformation tasks.
+    """
+
+    queryset = TransformationTask.objects.all()
+    serializer_class = TransformationTaskSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated, IsOwner])
 def create_transformed_image(request, pk):
@@ -140,38 +150,18 @@ def create_transformed_image(request, pk):
     task tracking.
     """
 
-    source_image = SourceImage.objects.get(id=pk)
-
-    if not source_image:
-        return Response(
-            {"message": "Source image not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    transformations = request.data.get("transformations")
-
-    if not transformations:
-        return Response(
-            {"message": "No transformations provided"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    task = TransformationTask.objects.create(
-        original_image=source_image, owner=request.user, transformations=transformations
+    # Pass context={'request': request, 'pk': pk} to make request and pk available in serializer context
+    serializer = TransformationTaskSerializer(
+        data=request.data, context={"request": request, "pk": pk}
     )
+    if not serializer.is_valid():
+        # Validation errors are handled by returning the response
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    task.save()
+    serializer.save()
 
-    apply_transformations.delay(task.id)
+    # Pass the task to the task queue
+    apply_transformations.delay(serializer.instance.id)
 
-    return Response({"task_id": task.id})
-
-
-class TransformationTaskViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    API view for listing and retrieving transformation tasks.
-    """
-
-    queryset = TransformationTask.objects.all()
-    serializer_class = TransformationTaskSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    # Return data instead of validated_data to include the task id
+    return Response(serializer.data, status=status.HTTP_201_CREATED)

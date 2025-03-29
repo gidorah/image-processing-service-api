@@ -136,6 +136,9 @@ class TransformationTask(models.Model):
         max_length=20, default=TaskStatus.PENDING, choices=TaskStatus.choices
     )  # Status of the transformation task (PENDING, IN_PROGRESS, SUCCESS, FAILED, CANCELLED)
     transformations = models.JSONField()  # List of transformations to be applied
+    format = models.CharField(
+        max_length=10, null=True, blank=True
+    )  # Format of the transformed image
 
     def __str__(self) -> str:
         return f"{self.original_image.file_name} - {self.status}"

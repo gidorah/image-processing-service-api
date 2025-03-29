@@ -217,10 +217,6 @@ def apply_transformations(task_id):
         raise e
 
 
-# --- Existing Transformation Implementations (Exactly as in original file) ---
-# --- NO CHANGES BELOW THIS LINE ---
-
-
 def crop(image: Image.Image, x, y, width, height) -> Image.Image:
     """
     Crop an image.

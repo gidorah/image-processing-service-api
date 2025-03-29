@@ -1,9 +1,12 @@
 import io
 import logging
+import math
 
 from celery import shared_task
 from django.core.files import File
-from PIL import Image
+
+# Add ImageOps, ImageFilter, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from api.exceptions import (
     NoTransformationsDefined,
@@ -58,7 +61,8 @@ def apply_transformations(task_id):
 
         for transformation in task.transformations:
             operation = transformation.get("operation")
-            params = transformation.get("params")
+            params = transformation.get("params", {})
+
             logger.info(f"Applying transformation {operation} with params {params}")
             image = TRANSFORMATION_MAP[operation](image, **params)
 
@@ -133,31 +137,131 @@ def rotate(image: Image, degrees) -> Image:
     return image.rotate(angle=degrees)
 
 
-def watermark(image: Image, watermark_file) -> Image:
+def watermark(image: Image, watermark_text: str) -> Image:
     """
-    Watermark an image.
+    Applies a standard, semi-transparent, diagonal watermark text across the image center.
+
+    Args:
+        image: The base image to watermark.
+        watermark_text: The text to use as a watermark.
+
+    Returns:
+        The watermarked image.
     """
-    return image
+
+    # make a blank image for the text, initialized to transparent text color
+    txt = Image.new("RGBA", image.size, (255, 255, 255, 0))
+
+    # get a font
+    # fnt = ImageFont.truetype("Pillow/Tests/fonts/FreeMono.ttf", 40)
+    # get a drawing context
+    d = ImageDraw.Draw(txt)
+
+    # get image size
+    w, h = image.size
+
+    # draw text in the center of the image
+    d.text((w / 2, h / 2), watermark_text, fill=(255, 255, 255, 128))
+
+    # rotate text 45 degrees
+    txt = txt.rotate(45)
+
+    watermarked_image = Image.alpha_composite(image, txt)
+
+    return watermarked_image
 
 
 def flip(image: Image) -> Image:
     """
-    Flip an image.
+    Flip an image vertically (top to bottom).
     """
-    pass
+    return ImageOps.flip(image)
 
 
 def mirror(image: Image) -> Image:
     """
-    Mirror an image.
+    Mirror an image horizontally (left to right).
     """
-    pass
+    return ImageOps.mirror(image)
+
+
+def grayscale(image: Image) -> Image:
+    """
+    Convert an image to grayscale.
+    """
+    return image.convert("L")
+
+
+def sepia(image: Image) -> Image:
+    """
+    Apply a sepia filter to an image using a standard conversion matrix.
+    Ensures the image is in RGB mode before applying the filter.
+    """
+    if image.mode != "RGB":
+        image = image.convert("RGB")
+
+    # Standard sepia conversion matrix based on common formulas:
+    # R' = R*0.393 + G*0.769 + B*0.189
+    # G' = R*0.349 + G*0.686 + B*0.168
+    # B' = R*0.272 + G*0.534 + B*0.131
+    # Pillow expects a 12-element tuple for RGB->RGB conversion matrix.
+    sepia_matrix = (
+        0.393,
+        0.769,
+        0.189,
+        0,
+        0.349,
+        0.686,
+        0.168,
+        0,
+        0.272,
+        0.534,
+        0.131,
+        0,
+    )
+    # Note: Pillow clamps values automatically if they exceed 255.
+    return image.convert("RGB", sepia_matrix)
+
+
+def blur(image: Image) -> Image:
+    """
+    Apply a blur filter to an image.
+    """
+    return image.filter(ImageFilter.BLUR)
+
+
+# Define available filters from ImageFilter
+AVAILABLE_FILTERS = {
+    "BLUR": blur,
+    "GRAYSCALE": grayscale,
+    "SEPIA": sepia,
+    # Add other filters as needed, e.g., GaussianBlur, UnsharpMask might need parameters
+    # "GaussianBlur": ImageFilter.GaussianBlur, # Example: Needs radius parameter
+}
 
 
 def apply_filter(image: Image, *args, **kwargs) -> Image:
     """
-    Apply a filter to an image.
+    Apply a predefined filter to an image.
+
+    Args:
+        image: The image to apply the filter to.
+        filter_name: The name of the filter (e.g., "BLUR", "SHARPEN").
+                     Must be a key in AVAILABLE_FILTERS.
+
+    Returns:
+        The filtered image, or the original image if the filter name is invalid.
     """
+
+    for filter_name, filter_params in kwargs.items():
+        filter_to_apply = AVAILABLE_FILTERS.get(filter_name.upper())
+        if filter_to_apply:
+            logger.info(f"Applying filter: {filter_name}")
+            image = filter_to_apply(image)
+        else:
+            logger.warning(f"Invalid filter name: {filter_name}. No filter applied.")
+            raise ValueError(f"Invalid filter name: {filter_name}")
+
     return image
 
 

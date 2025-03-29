@@ -213,6 +213,7 @@ def apply_transformations(task_id):
         logger.error(f"Error while applying transformations: {e}", exc_info=True)
         if task:
             task.status = TaskStatus.FAILED
+            task.error_message = str(e)
             task.save()
         raise e
 

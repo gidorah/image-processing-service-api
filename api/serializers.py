@@ -217,18 +217,24 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
         model = TransformationTask
         fields = [
             "id",
-            "original_image",  # Keep for read operations
+            "original_image",
             "result_image",
             "status",
             "transformations",
             "format",
+            "created_at",
+            "updated_at",
+            "error_message",
         ]
         read_only_fields = (
             "id",
             "original_image",
             "result_image",
             "status",
-        )  # Make original_image read-only
+            "created_at",
+            "updated_at",
+            "error_message",
+        )
 
     def create(self, validated_data):
         """

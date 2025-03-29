@@ -139,6 +139,9 @@ class TransformationTask(models.Model):
     format = models.CharField(
         max_length=10, null=True, blank=True
     )  # Format of the transformed image
+    error_message = models.TextField(
+        null=True, blank=True
+    )  # Error message if the transformation fails
 
     def __str__(self) -> str:
         return f"{self.original_image.file_name} - {self.status}"

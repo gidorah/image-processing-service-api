@@ -126,7 +126,9 @@ class UploadImageSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Extract and set metadata
-        validated_data["metadata"] = extract_metadata(image_file=validated_data["file"])
+        validated_data["metadata"] = extract_metadata(
+            image_file=validated_data["file"].image
+        )
         return super().create(validated_data)
 
     def validate_file(self, value):

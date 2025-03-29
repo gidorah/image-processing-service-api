@@ -75,6 +75,11 @@ def apply_transformations(task_id):
         # Save the PIL image to the buffer with the specified format
         image.save(image_buffer, format=image_format)
 
+        # Set the format of the image because:
+        # https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.format
+        # We need to set it for metadata extraction
+        image.format = image_format
+
         # Reset buffer position to the beginning
         image_buffer.seek(0)
 
@@ -91,8 +96,8 @@ def apply_transformations(task_id):
             description=original_image.description,
             source_image=original_image,
             transformation_task=task,
+            metadata=extract_metadata(image=image),
         )
-
         result_image.save()
         # Close the buffer to free memory
         image_buffer.close()

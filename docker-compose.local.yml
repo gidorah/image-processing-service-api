@@ -14,7 +14,7 @@ services:
       - elasticsearch
     environment:
       - REMOTE_DEBUGGING_PORT=5678
-      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://@redis:6379/0
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -38,18 +38,22 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command: redis-server
 
-  # worker:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.image_processing_worker
-  #   command: celery -A image_processing_service worker -l info --hostname=image_processing_worker@%%h
-  #   environment:
-  #     - DJANGO_SETTINGS_MODULE=image_processing_service.settings
-  #     - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
-  #   volumes:
-  #     - .:/app
+  worker:
+    build:
+      context: .
+      dockerfile: ./compose/local/worker/Dockerfile
+    ports:
+      - "5679:5679"
+    command: celery -A image_processing_service worker -l info --hostname=image_processing_worker@%%h
+    environment:
+      - DJANGO_SETTINGS_MODULE=image_processing_service.settings
+      - CELERY_BROKER_URL=redis://@redis:6379/0
+      - DB_HOST=db
+      - REMOTE_DEBUGGING_PORT=5679
+    volumes:
+      - .:/app
 
   # beat:
   #   build: .

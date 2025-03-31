@@ -1,19 +1,21 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from api.models import SourceImage, TransformedImage
+from api.models import SourceImage, TransformationTask, TransformedImage
 from api.permissions import IsOwner
 from api.serializers import (
     LoginSerializer,
     RegisterSerializer,
     SourceImageDetailSerializer,
     SourceImageListSerializer,
+    TransformationTaskSerializer,
     TransformedImageDetailSerializer,
     TransformedImageListSerializer,
     UploadImageSerializer,
 )
+from image_processor.tasks import apply_transformations
 
 
 def get_tokens_for_user(user) -> dict[str, str]:
@@ -125,3 +127,41 @@ class TransformedImageDetailView(generics.RetrieveAPIView):
     queryset = TransformedImage.objects.all()
     serializer_class = TransformedImageDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+class TransformationTaskViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API view for listing and retrieving transformation tasks.
+    """
+
+    queryset = TransformationTask.objects.all()
+    serializer_class = TransformationTaskSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated, IsOwner])
+def create_transformed_image(request, pk):
+    """
+    API view for creating a transformed image.
+
+    Creates a new transformation task for the given image
+    and passes to the task queue. Returns the task ID for
+    task tracking.
+    """
+
+    # Pass context={'request': request, 'pk': pk} to make request and pk available in serializer context
+    serializer = TransformationTaskSerializer(
+        data=request.data, context={"request": request, "pk": pk}
+    )
+    if not serializer.is_valid():
+        # Validation errors are handled by returning the response
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    serializer.save()
+
+    # Pass the task to the task queue
+    apply_transformations.delay(serializer.instance.id)
+
+    # Return data instead of validated_data to include the task id
+    return Response(serializer.data, status=status.HTTP_201_CREATED)

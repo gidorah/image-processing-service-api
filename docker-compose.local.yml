@@ -20,6 +20,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - CACHE_REDIS_URL=redis://@redis:6379/1
 
   db:
     image: postgres:latest
@@ -52,6 +53,7 @@ services:
       - CELERY_BROKER_URL=redis://@redis:6379/0
       - DB_HOST=db
       - REMOTE_DEBUGGING_PORT=5679
+      - CACHE_REDIS_URL=redis://@redis:6379/1
     volumes:
       - .:/app
 

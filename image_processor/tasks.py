@@ -18,7 +18,11 @@ from api.exceptions import (
     TransformationFailed,
 )
 from api.models import SourceImage, TaskStatus, TransformationTask, TransformedImage
-from utils.utils import extract_metadata
+from utils.utils import (
+    extract_metadata,
+    get_transformed_image_id_from_cache,
+    set_transformed_image_id_to_cache,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -184,11 +188,29 @@ def apply_transformations(task_id):
     Because seperating the transformations into different
     tasks will increase the image read/write and
     communication costs.
+
+    Checks cache first to avoid re-computation
+    and caching the result ID upon success.
     """
     task = None  # Define task in outer scope for exception handling
     try:
         # Step 1: Get task and set IN_PROGRESS
         task = _get_task_and_set_in_progress(task_id)
+
+        # Check if transformation is already cached
+        cached_image_id = get_transformed_image_id_from_cache(
+            task.original_image.id, task.transformations, task.format
+        )
+
+        # If cached image ID is found, set it to task and don't apply transformations
+        if cached_image_id:
+            logger.info(
+                f"Transformed image found in cache for task: {task.id}. Won't apply transformations."
+            )
+            task.result_image_id = cached_image_id
+            task.status = TaskStatus.SUCCESS
+            task.save()
+            return
 
         # Step 2: Load image and determine format
         image, image_format, original_image_instance = _load_image_and_determine_format(
@@ -205,6 +227,14 @@ def apply_transformations(task_id):
 
         # Step 5: Link result
         task.result_image = transformed_image_instance
+
+        # Step 6: Save to cache
+        set_transformed_image_id_to_cache(
+            original_image_instance.id,
+            task.transformations,
+            task.format,
+            transformed_image_instance.id,
+        )
 
         task.status = TaskStatus.SUCCESS
         task.save()

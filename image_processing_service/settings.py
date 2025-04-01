@@ -147,9 +147,9 @@ CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": CACHE_REDIS_URL,
-        "TIMEOUT": 60
-        * 60
-        * 2,  # 2 hours | This value should not exceed expired image cleanup time
+        "TIMEOUT": int(
+            os.environ.get("CACHE_TIMEOUT_SECONDS", 7200)
+        ),  # 2 hours | This value should not exceed expired image cleanup time
         # "OPTIONS": {
         #     "MAX_ENTRIES": 1000,
         #     "CULL_FREQUENCY": 10,  # 10% of the cache will be cleared when it reaches the limit

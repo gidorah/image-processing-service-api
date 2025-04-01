@@ -8,28 +8,40 @@ The project is structured as follows:
 
 ```
 image-processing-service-api/   # Project root directory
-├── api/                # Django app for the API
-│   ├── ...
-│
-├── image_processor/     # Django app for image processing
-│   ├── ...
-│
-├── image_processing_service/  # Django project settings directory
-│   ├── ...
-│
-├── manage.py           # Django management script
-├── requirements.txt    # Project dependencies
-├── .env                # Environment variables (KEEP THIS OUT OF VERSION CONTROL)
-├── .gitignore          # Files and directories to ignore in Git
-├── docker-compose.yml  # (Optional) For local development with Docker
-├── Dockerfile          # (Optional) For building a Docker image
-└── README.md           # This file
-└── celery.py            # celery configurations
+├── api/                        # Django app for the API (views, serializers, models, etc.)
+├── compose/                    # Docker Compose configurations (local, production, etc.)
+│   ├── local/
+│   │   ├── django/
+│   │   ├── worker/
+│   │   └── ...
+│   └── ...
+├── elk/                        # ELK stack configurations (Elasticsearch, Logstash, Kibana)
+│   ├── local/
+│   │   ├── elasticsearch/
+│   │   ├── filebeat/
+│   │   └── kibana/
+├── image_processing_service/   # Django project settings directory (settings.py, urls.py, etc.)
+├── image_processor/            # Django app for image processing logic (tasks, models, etc.)
+├── logs/                       # Log files directory (mounted in Docker)
+├── posting-collection/         # (Optional) Postman collection or similar API testing files
+├── utils/                      # Shared utility functions and custom exceptions
+├── .dockerignore               # Specifies files/directories Docker should ignore
+├── .env.example                # Example environment variables file
+├── .gitignore                  # Files and directories to ignore in Git
+├── docker-compose.local.yml    # Docker Compose file for local development
+├── justfile                    # Just command runner configuration
+├── LICENSE                     # Project license file (MIT)
+├── manage.py                   # Django management script
+├── README.md                   # This file
+└── requirements.txt            # Project dependencies
 ```
 
-*   **`api/`:**  Handles API requests and responses, authentication, and serialization.
-*   **`image_processor/`:**  Contains the core image processing logic, including models, Celery tasks, and utility functions.
-*   **`image_processing_service/`:** Contains project-wide settings (database, Celery, S3, etc.).
+*   **`api/`:** Handles API requests/responses, authentication, serialization, and API-specific models.
+*   **`compose/`:** Contains Docker Compose files for different environments (e.g., `local`).
+*   **`elk/`:** Contains configuration files for the ELK stack used for logging.
+*   **`image_processing_service/`:** Contains the main Django project settings, URL configurations, and ASGI/WSGI entry points.
+*   **`image_processor/`:** Contains the core image processing logic, including Celery tasks and related models.
+*   **`utils/`:** Contains shared helper functions and custom exception classes used across the project.
 
 ## Features
 
@@ -57,11 +69,13 @@ image-processing-service-api/   # Project root directory
 * **API Versioning:**
     * Uses URI path versioning
 *   **Caching:**
-    *  [To be implemented: Caching mechanism for transformed images (e.g., Redis, CDN).]
+    *   Uses Redis for caching API responses and potentially transformed image data.
 *   **Rate Limiting:**
-    *  [To be implemented: Rate limiting for image transformations to prevent abuse.]
+    *   Implements rate limiting (per user/anonymous) using Django REST Framework.
 * **Error Handling:**
     * Provides appropriate HTTP status and error responses.
+* **Logging:**
+    * Uses the ELK stack (Elasticsearch, Kibana, Filebeat) via Docker for centralized logging.
 
 ## Technologies Used
 
@@ -72,91 +86,114 @@ image-processing-service-api/   # Project root directory
 *   **Pillow:** Image processing library.
 *   **PostgreSQL:** Database.
 *   **Amazon S3:** Object storage for images.
-*   **Redis:**  [To be implemented: In-memory data store (for caching and Celery broker/backend).]
-* **JWT:** JSON web token for authentication
-* **Sentry:** For error tracking
-* **ELK:** For logging
+*   **Redis:** In-memory data store (for caching and Celery broker/backend).
+*   **JWT:** JSON web token for authentication.
+*   **Sentry:** For error tracking.
+*   **ELK Stack (Elasticsearch, Kibana, Filebeat):** For centralized logging and monitoring.
+*   **Docker & Docker Compose:** For containerization and local development environment setup.
+*   **Just:** Command runner for simplifying common development tasks (like Docker management).
 
-## Setup (Local Development)
+## Setup (Local Development with Docker)
+
+This project uses Docker and Docker Compose for a consistent local development environment. It also utilizes `just` for simplified command execution.
+
+**Prerequisites:**
+
+*   **Docker:** Install Docker Desktop or Docker Engine.
+*   **Just:** Install the `just` command runner (see [https://github.com/casey/just](https://github.com/casey/just)).
+
+**Steps:**
 
 1.  **Clone the repository:**
-
     ```bash
     git clone <repository_url>
     cd image-processing-service-api
     ```
 
-2.  **Create a virtual environment:**
+2.  **Set up environment variables:**
+    *   Copy the example environment file:
+        ```bash
+        cp .env.example .env
+        ```
+    *   Edit the `.env` file in the project root and fill in the required values (see the Environment Variables section below). **Crucially, set your AWS credentials and S3 bucket details.**
 
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # On Linux/macOS
-    venv\Scripts\activate    # On Windows
-    ```
+3.  **Build and start the services:**
+    *   Use the `just` command to build the Docker images and start all services (Django, DB, Redis, Worker, ELK):
+        ```bash
+        just build
+        just up
+        ```
+    *   Alternatively, use Docker Compose directly:
+        ```bash
+        docker compose build
+        docker compose up -d --remove-orphans
+        ```
 
-3.  **Install dependencies:**
+4.  **Run database migrations:**
+    *   Once the containers are running, execute migrations inside the Django container:
+        ```bash
+        docker compose exec django python manage.py makemigrations
+        docker compose exec django python manage.py migrate
+        ```
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+5.  **Access the services:**
+    *   **API:** `http://localhost:8000`
+    *   **Kibana (Logs):** `http://localhost:5601`
+    *   **Django Debugger (if enabled):** Port `5678`
+    *   **Celery Worker Debugger (if enabled):** Port `5679`
 
-4.  **Set up environment variables:**
+**Common `just` Commands:**
 
-    *   Create a `.env` file in the project root.
-    *   Add necessary environment variables (see `.env.example` or the section below for required variables).
-
-5.  **Configure PostgreSQL:**
-
-    *   Make sure PostgreSQL is installed and running.
-    *   Create a database for the project.
-    *   Update the database settings in `image_processing_service/settings.py` (using environment variables from `.env`).
-
-6.  **Configure Redis:**
-   * Install and configure Redis
-
-7. **Configure S3**
-    * Create S3 bucket and configure credentials.
-
-8.  **Run migrations:**
-
-    ```bash
-    python manage.py makemigrations
-    python manage.py migrate
-    ```
-
-9.  **Run the development server:**
-
-    ```bash
-    python manage.py runserver
-    ```
-10. **Run Celery worker:**
-    ```
-    celery -A image_processing_service worker -l info
-    ```
-11. **Run Celery beat (for scheduled tasks):**
-    ```
-    celery -A image_processing_service beat -l info
-    ```
+*   `just up`: Start all services defined in `docker-compose.local.yml`.
+*   `just down`: Stop all running services.
+*   `just logs django`: Tail the logs for the Django service (replace `django` with `worker`, `db`, etc. as needed).
+*   `just prune`: Stop services and remove associated volumes (use with caution!).
+*   `just up_services`: Start supporting services (DB, Redis, ELK, Worker) without starting the main Django app container (useful if you want to run Django locally outside Docker but use the containerized services).
 
 ## Environment Variables (`.env`)
 
 You'll need to set the following environment variables in your `.env` file.  **Do not commit your `.env` file to version control.**
 
-```
-SECRET_KEY=your_django_secret_key
-DEBUG=True  # Set to False in production
-DATABASE_URL=postgres://user:password@host:port/database_name
-CELERY_BROKER_URL=redis://localhost:6379/0  # Or your Redis URL
-CELERY_RESULT_BACKEND=redis://localhost:6379/0 # Or your Redis URL
+```dotenv
+# Django Core
+DJANGO_SECRET_KEY=your_strong_random_secret_key
+DEBUG=True # Set to False in production
+
+# Database (PostgreSQL - used by docker-compose.local.yml)
+DB_NAME=image_processing_db
+DB_USER=image_processing_user
+DB_PASSWORD=your_db_password
+DB_HOST=db # Service name in docker-compose
+DB_PORT=5432
+
+# Celery (using Redis broker)
+CELERY_BROKER_URL=redis://@redis:6379/0 # Service name in docker-compose
+
+# Cache (using Redis)
+CACHE_REDIS_URL=redis://@redis:6379/1 # Use a different DB number for cache
+
+# AWS S3 Storage
 AWS_ACCESS_KEY_ID=your_aws_access_key_id
 AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 AWS_STORAGE_BUCKET_NAME=your_s3_bucket_name
-AWS_S3_REGION_NAME=your_s3_region  # e.g., us-east-1
-MEDIA_ROOT=media #your media root
-MEDIA_URL=/media/ #your media url
-MAX_IMAGE_SIZE=10485760 #your max image size, example: 10MB
-SENTRY_DSN=your_sentry_dsn # sentry
-# Add other environment variables as needed (e.g., for email settings, API keys)
+AWS_S3_REGION_NAME=your_s3_region # e.g., us-east-1
+
+# Sentry (Optional Error Tracking)
+SENTRY_DSN=your_sentry_dsn
+
+# Logging (File path used by Filebeat in Docker)
+LOG_FILE_PATH=/var/log/django/django.log
+
+# JWT Settings (Optional overrides)
+# ACCESS_TOKEN_LIFETIME=5
+# REFRESH_TOKEN_LIFETIME=60
+
+# Image Validation (Optional overrides)
+# IMAGE_MAX_PIXEL_SIZE=4096
+# IMAGE_MIN_PIXEL_SIZE=100
+
+# Debugging (Optional - Port used by docker-compose.local.yml)
+# REMOTE_DEBUGGING_PORT=5678
 ```
 
 ## API Documentation
@@ -173,4 +210,4 @@ SENTRY_DSN=your_sentry_dsn # sentry
 
 ## License
 
-[To be added: Choose a license for your project (e.g., MIT, Apache 2.0).]
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

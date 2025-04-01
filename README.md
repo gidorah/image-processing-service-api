@@ -2,6 +2,10 @@
 
 This repository contains the backend for an image processing service, built with Django and Django REST Framework (DRF). It allows users to upload images, perform various transformations, and retrieve images in different formats.
 
+It started as a roadmap.sh exercise project but became a portfolio project which I try new things on. Here is the link for original requirements:
+
+https://roadmap.sh/projects/image-processing-service
+
 ## Project Structure
 
 The project is structured as follows:

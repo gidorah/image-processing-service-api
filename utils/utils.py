@@ -83,7 +83,7 @@ def set_transformed_image_id_to_cache(
     )
     if not cache_key:
         logger.error(
-            "Cache key generation failed, cannot set transformed image ID to cache"
+            f"Cache key generation failed for source_image_id: {source_image_id}, transformations: {transformations}, image_format: {image_format}"
         )
         return
 

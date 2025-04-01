@@ -68,7 +68,7 @@ def get_transformed_image_id_from_cache(source_image_id, transformations, image_
             return transformed_image_id
         else:
             logger.debug(f"No transformed image ID found in cache for key {cache_key}")
-    logger.error(f"Cache key generation failed {source_image_id}")
+    logger.error(f"Cache key generation failed for source_image_id: {source_image_id}")
     return None
 
 

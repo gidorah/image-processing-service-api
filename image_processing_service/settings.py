@@ -141,8 +141,21 @@ STORAGES = {
     },
 }
 
-# DEFAULT_FILE_STORAGE = "storages.backends.s3.S3Storage"
-# STATICFILES_STORAGE = "storages.backends.s3.S3Storage"
+CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": CACHE_REDIS_URL,
+        "TIMEOUT": int(
+            os.environ.get("CACHE_TIMEOUT_SECONDS", 7200)
+        ),  # 2 hours | This value should not exceed expired image cleanup time
+        # "OPTIONS": {
+        #     "MAX_ENTRIES": 1000,
+        #     "CULL_FREQUENCY": 10,  # 10% of the cache will be cleared when it reaches the limit
+        # },
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

@@ -1,6 +1,6 @@
 django==5.1.7
 djangorestframework==3.16.0
-celery==5.4.0
+celery==5.5.1
 redis==5.2.1
 django-celery-beat==2.7.0
 django-redis==5.4.0

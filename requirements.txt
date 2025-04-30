@@ -13,4 +13,4 @@ django-celery-beat==2.7.0
 django-redis==5.4.0
 djangorestframework-simplejwt[crypto]==5.5.0
 django-storages[s3]==1.14.5
-pillow==11.1.0
+pillow==11.2.1

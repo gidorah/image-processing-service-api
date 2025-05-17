@@ -14,16 +14,14 @@ def extract_metadata(image) -> dict:
     Extract metadata from an image.
     """
     try:
-        if not image.format or not image.mode or not image.width or not image.height:
-            missing_attrs = []
-            if not image.format:
-                missing_attrs.append("format")
-            if not image.mode:
-                missing_attrs.append("mode")
-            if not image.width:
-                missing_attrs.append("width")
-            if not image.height:
-                missing_attrs.append("height")
+        required_attrs = {
+            "format": image.format,
+            "mode": image.mode,
+            "width": image.width,
+            "height": image.height,
+        }
+        missing_attrs = [attr for attr, value in required_attrs.items() if not value]
+        if missing_attrs:
             logger.error(
                 f"Missing image metadata detected: {', '.join(missing_attrs)} - values: {image.format}, {image.mode}, {image.width}, {image.height}"
             )

@@ -14,6 +14,12 @@ def extract_metadata(image) -> dict:
     Extract metadata from an image.
     """
     try:
+        if not image.format or not image.mode or not image.width or not image.height:
+            logger.error(
+                f"Caught exception in extract_metadata: Missing image metadata: {image.format}, {image.mode}, {image.width}, {image.height}"
+            )
+            raise MetadataExtractionFailed("Missing image metadata")
+
         metadata = {}
         metadata["format"] = image.format
         metadata["format_description"] = image.format_description
@@ -22,7 +28,8 @@ def extract_metadata(image) -> dict:
         metadata["height"] = image.height
         # metadata["size"] = image_file.size
     except Exception as e:
-        raise MetadataExtractionFailed(message=str(e))
+        logger.error(f"Caught exception in extract_metadata: {type(e).__name__}: {e}")
+        raise MetadataExtractionFailed(str(e))
     return metadata
 
 

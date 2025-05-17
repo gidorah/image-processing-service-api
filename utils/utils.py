@@ -15,10 +15,21 @@ def extract_metadata(image) -> dict:
     """
     try:
         if not image.format or not image.mode or not image.width or not image.height:
+            missing_attrs = []
+            if not image.format:
+                missing_attrs.append("format")
+            if not image.mode:
+                missing_attrs.append("mode")
+            if not image.width:
+                missing_attrs.append("width")
+            if not image.height:
+                missing_attrs.append("height")
             logger.error(
-                f"Caught exception in extract_metadata: Missing image metadata: {image.format}, {image.mode}, {image.width}, {image.height}"
+                f"Missing image metadata detected: {', '.join(missing_attrs)} - values: {image.format}, {image.mode}, {image.width}, {image.height}"
             )
-            raise MetadataExtractionFailed("Missing image metadata")
+            raise MetadataExtractionFailed(
+                f"Missing image metadata: {', '.join(missing_attrs)}"
+            )
 
         metadata = {}
         metadata["format"] = image.format

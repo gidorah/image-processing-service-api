@@ -50,3 +50,6 @@ remotedev_nginx.conf
 
 # posting collection
 posting-collection/
+
+# Cursor rules
+.cursor/rules/django-python-cursor-rules.mdc

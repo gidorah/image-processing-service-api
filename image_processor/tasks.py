@@ -1,6 +1,5 @@
 import io
 import logging
-import math
 
 from celery import shared_task
 from django.core.files import File
@@ -8,7 +7,6 @@ from django.db.models.fields.files import ImageFieldFile
 
 # Add ImageOps, ImageFilter, ImageDraw, ImageFont
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
-from PIL.ImageFile import ImageFile
 
 from api.exceptions import (
     InvalidTransformation,
@@ -252,6 +250,9 @@ def crop(image: Image.Image, x, y, width, height) -> Image.Image:
     """
     Crop an image.
     """
+    if x + width > image.width or y + height > image.height:
+        raise ValueError("Invalid dimensions for cropping.")
+
     box = (x, y, x + width, y + height)
     return image.crop(box)
 
@@ -281,6 +282,9 @@ def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     Returns:
         The watermarked image.
     """
+
+    if not watermark_text:
+        raise ValueError("Watermark text cannot be empty.")
 
     # make a blank image for the text, initialized to transparent text color
     watermark_image: Image.Image = Image.new("RGBA", image.size, (255, 255, 255, 0))
@@ -358,7 +362,7 @@ def blur(image: Image.Image) -> Image.Image:
     """
     Apply a blur filter to an image.
     """
-    return image.filter(ImageFilter.BLUR)
+    return image.filter(ImageFilter.GaussianBlur)
 
 
 # Define available filters from ImageFilter

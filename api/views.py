@@ -71,7 +71,7 @@ def login_user(request) -> Response:
             },
             status=status.HTTP_200_OK,
         )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class SourceImageListView(generics.ListAPIView):

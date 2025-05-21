@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -26,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-import sys
+# Note: In a production environment, you should set this in an environment variabl
 if "test" in sys.argv:
     SECRET_KEY = "dummy_secret_key_for_testing"
 else:
@@ -101,8 +102,6 @@ WSGI_APPLICATION = "image_processing_service.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-import sys
 
 if "test" in sys.argv:
     DATABASES = {

@@ -140,6 +140,43 @@ class APIImageUploadTests(APITestCase):
         response = self.client.post(self.upload_url, data, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_upload_non_image_file(self):
+        """Test uploading a non-image file (e.g., a text file)."""
+        # Create a fake non-image file (e.g., a text file)
+        non_image_content = b"This is not an image file."
+        non_image_file = SimpleUploadedFile(
+            name="test_document.txt",
+            content=non_image_content,
+            content_type="text/plain",
+        )
+        data = {
+            "file": non_image_file,
+            "description": "Test non-image file",
+            "file_name": "test_document.txt",
+        }
+        response = self.client.post(self.upload_url, data, format="multipart")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_upload_unsupported_image_format(self):
+        """Test uploading an image with an unsupported format (e.g., TIFF)."""
+        # Create a fake TIFF image (Pillow can create TIFF in memory)
+        image = Image.new("RGB", (60, 30), color="blue")
+        buffer = BytesIO()
+        image.save(buffer, format="TIFF")
+        buffer.seek(0)
+        unsupported_image_file = SimpleUploadedFile(
+            name="test_image.tiff",
+            content=buffer.read(),
+            content_type="image/tiff",
+        )
+        data = {
+            "file": unsupported_image_file,
+            "description": "Test unsupported image format",
+            "file_name": "test_image.tiff",
+        }
+        response = self.client.post(self.upload_url, data, format="multipart")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])
 class APITransformationTests(APITestCase):
@@ -150,22 +187,30 @@ class APITransformationTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
         # Create a valid in-memory image file for the source image
-        image = Image.new("RGB", (100, 100), color="green") # Changed color to differentiate
+        image = Image.new(
+            "RGB", (100, 100), color="green"
+        )  # Changed color to differentiate
         buffer = BytesIO()
         image.save(buffer, format="JPEG")
         buffer.seek(0)
-        self.source_image_file_content = buffer.read() # Store content for re-use if needed
+        self.source_image_file_content = (
+            buffer.read()
+        )  # Store content for re-use if needed
 
         self.source_image = SourceImage.objects.create(
             owner=self.user,
             file=SimpleUploadedFile(
-                name="test_source_image.jpg", # Changed name for clarity
+                name="test_source_image.jpg",  # Changed name for clarity
                 content=self.source_image_file_content,
                 content_type="image/jpeg",
             ),
             file_name="test_source_image",
             description="Test source image for transformations",
-            metadata={"format": "JPEG", "width": 100, "height": 100} # Manually set metadata
+            metadata={
+                "format": "JPEG",
+                "width": 100,
+                "height": 100,
+            },  # Manually set metadata
         )
 
         self.transform_url = reverse(
@@ -176,8 +221,8 @@ class APITransformationTests(APITestCase):
         """Test transformation task creation"""
         data = {
             "transformations": [
-                {"operation": "resize", "width": 800, "height": 600},
-                {"operation": "grayscale"},
+                {"operation": "resize", "params": {"width": 50, "height": 50}},
+                {"operation": "apply_filter", "params": {"grayscale": True}},
             ]
         }
         response = self.client.post(self.transform_url, data, format="json")
@@ -190,19 +235,18 @@ class APITransformationTests(APITestCase):
         """Test creating a transformation for a source image that does not exist."""
         non_existent_image_pk = 99999  # An ID that is unlikely to exist
         url = reverse("create_transformed_image", kwargs={"pk": non_existent_image_pk})
-        data = {
-            "transformations": {"grayscale": True}
-        }
+        data = {"transformations": [{"operation": "grayscale"}]}
         response = self.client.post(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND) # Reverted to 404 as per original requirement
+        print(response.data)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_create_transformation_invalid_resize_dimensions(self):
         """Test creating a transformation with invalid resize dimensions."""
         invalid_dimensions_data = [
-            [{"operation": "resize", "width": -100, "height": 100}],
-            [{"operation": "resize", "width": 100, "height": -100}],
-            [{"operation": "resize", "width": 0, "height": 100}],
-            [{"operation": "resize", "width": 100, "height": 0}],
+            [{"operation": "resize", "params": {"width": -100, "height": 100}}],
+            [{"operation": "resize", "params": {"width": 100, "height": -100}}],
+            [{"operation": "resize", "params": {"width": 0, "height": 100}}],
+            [{"operation": "resize", "params": {"width": 100, "height": 0}}],
         ]
         for transformations_list in invalid_dimensions_data:
             with self.subTest(transformations=transformations_list):
@@ -213,7 +257,9 @@ class APITransformationTests(APITestCase):
     def test_create_transformation_unrecognized_type(self):
         """Test creating a transformation with an unrecognized transformation type."""
         data = {
-            "transformations": [{"operation": "unknown_transform", "value": 123}]
+            "transformations": [
+                {"operation": "unknown_transform", "params": {"value": 123}}
+            ]
         }
         response = self.client.post(self.transform_url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -221,9 +267,9 @@ class APITransformationTests(APITestCase):
     def test_create_transformation_missing_resize_parameters(self):
         """Test creating a resize transformation with missing required parameters."""
         missing_params_data = [
-            [{"operation": "resize", "width": 100}],
-            [{"operation": "resize", "height": 100}],
-            [{"operation": "resize"}],
+            [{"operation": "resize", "params": {"width": 100}}],
+            [{"operation": "resize", "params": {"height": 100}}],
+            [{"operation": "resize", "params": {}}],
         ]
         for transformations in missing_params_data:
             with self.subTest(transformations=transformations):
@@ -257,8 +303,8 @@ class APIImageRetrievalTests(APITestCase):
             owner=self.user,
             original_image=self.source_image,
             transformations={
-                "resize": {"width": 800, "height": 600},
-                "grayscale": True,
+                "resize": {"params": {"width": 800, "height": 600}},
+                "apply_filter": {"params": {"grayscale": True}},
             },
             status="completed",
         )
@@ -356,12 +402,8 @@ class APIThrottlingTests(APITestCase):
 class APIPermissionTests(APITestCase):
     def setUp(self):
         # Create two users
-        self.user1 = User.objects.create_user(
-            username="user1", password="testpass123"
-        )
-        self.user2 = User.objects.create_user(
-            username="user2", password="testpass123"
-        )
+        self.user1 = User.objects.create_user(username="user1", password="testpass123")
+        self.user2 = User.objects.create_user(username="user2", password="testpass123")
 
         # Create resources for user1
         self.source_image1 = SourceImage.objects.create(
@@ -377,7 +419,9 @@ class APIPermissionTests(APITestCase):
         self.transformation_task1 = TransformationTask.objects.create(
             owner=self.user1,
             original_image=self.source_image1,
-            transformations={"grayscale": True},
+            transformations=[
+                {"operation": "apply_filter", "params": {"grayscale": True}}
+            ],
             status="completed",
         )
         self.transformed_image1 = TransformedImage.objects.create(
@@ -407,7 +451,7 @@ class APIPermissionTests(APITestCase):
         self.transformation_task2 = TransformationTask.objects.create(
             owner=self.user2,
             original_image=self.source_image2,
-            transformations={"rotate": 90},
+            transformations=[{"operation": "rotate", "params": {"angle": 90}}],
             status="completed",
         )
         self.transformed_image2 = TransformedImage.objects.create(
@@ -429,6 +473,7 @@ class APIPermissionTests(APITestCase):
         url = reverse("source_image_list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        print(response.data)
         # User1 should only see their own source image
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], self.source_image1.id)
@@ -484,11 +529,11 @@ class APITransformationTaskViewSetTests(APITestCase):
             ),
             file_name="test_source_for_task.jpg",
             description="Source image for task tests",
-            metadata={"format": "JPEG", "width": 100, "height": 100}
+            metadata={"format": "JPEG", "width": 100, "height": 100},
         )
 
         # Create a couple of transformation tasks
-        self.task1_transformations = [{"operation": "grayscale"}]
+        self.task1_transformations = [{"operation": "grayscale", "params": {}}]
         self.task1 = TransformationTask.objects.create(
             owner=self.user,
             original_image=self.source_image,
@@ -496,7 +541,9 @@ class APITransformationTaskViewSetTests(APITestCase):
             status="pending",
         )
 
-        self.task2_transformations = [{"operation": "resize", "width": 50, "height": 50}]
+        self.task2_transformations = [
+            {"operation": "resize", "params": {"width": 50, "height": 50}}
+        ]
         self.task2 = TransformationTask.objects.create(
             owner=self.user,
             original_image=self.source_image,
@@ -510,7 +557,7 @@ class APITransformationTaskViewSetTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data["results"]), 2)
-        
+
         task_ids_in_response = {task["id"] for task in response.data["results"]}
         self.assertIn(self.task1.id, task_ids_in_response)
         self.assertIn(self.task2.id, task_ids_in_response)
@@ -524,7 +571,6 @@ class APITransformationTaskViewSetTests(APITestCase):
         self.assertEqual(response.data["status"], "pending")
         # Ensure transformations are correctly serialized (JSON string to Python list/dict)
         self.assertEqual(response.data["transformations"], self.task1_transformations)
-
 
     def test_retrieve_non_existent_transformation_task(self):
         """Test retrieving a non-existent transformation task."""

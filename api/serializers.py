@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
 from PIL import Image
 from rest_framework import serializers
+from rest_framework.exceptions import NotFound
 
 from api.models import SourceImage, TransformationTask, TransformedImage
 from utils.utils import extract_metadata
@@ -272,11 +273,11 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
             if source_image.owner != request_user:
                 raise serializers.ValidationError("You do not own this source image.")
 
+        # if the source image does not exist, raise a not found error
         except SourceImage.DoesNotExist:
-            raise serializers.ValidationError(
-                f"Source image with id {source_image_id} not found."
+            raise NotFound(
+                detail=f"Source image with ID {source_image_id} does not exist."
             )
-
         # Add owner and original_image to the validated_data before creating
         validated_data["owner"] = request_user
         validated_data["original_image"] = source_image

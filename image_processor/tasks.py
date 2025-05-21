@@ -109,7 +109,17 @@ def _apply_processing_steps(
         transform_func = TRANSFORMATION_MAP[operation]
 
         logger.info(f"Applying transformation {operation} with params {params}")
-        processed_image = transform_func(processed_image, **params)
+
+        try:
+            processed_image = transform_func(processed_image, **params)
+        except Exception as e:
+            logger.error(
+                f"Error applying transformation {operation} for task: {task.id}: {e}",
+                exc_info=True,
+            )
+            raise TransformationFailed(
+                detail=f"Error applying transformation {operation} for task: {task.id}: {e}"
+            )
 
         if not processed_image:
             logger.error(f"Transformation failed for task: {task.id}.")

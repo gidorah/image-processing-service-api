@@ -237,7 +237,6 @@ class APITransformationTests(APITestCase):
         url = reverse("create_transformed_image", kwargs={"pk": non_existent_image_pk})
         data = {"transformations": [{"operation": "grayscale"}]}
         response = self.client.post(url, data, format="json")
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_create_transformation_invalid_resize_dimensions(self):
@@ -555,11 +554,11 @@ class APITransformationTaskViewSetTests(APITestCase):
         url = reverse("task-list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 2)
 
-        # Compare task IDs in the response to expected task IDs, ignoring order
-        task_ids_in_response = [task["id"] for task in response.data["results"]]
-        expected_task_ids = [self.task1.id, self.task2.id]
-        self.assertCountEqual(task_ids_in_response, expected_task_ids)
+        task_ids_in_response = {task["id"] for task in response.data["results"]}
+        self.assertIn(self.task1.id, task_ids_in_response)
+        self.assertIn(self.task2.id, task_ids_in_response)
 
     def test_retrieve_transformation_task(self):
         """Test retrieving a specific transformation task."""

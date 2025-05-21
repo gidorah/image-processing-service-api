@@ -60,10 +60,13 @@ class TestGenerateTransformationCacheKey(TestCase):
     def test_same_transformations_generate_same_key(self):
         """Test that identical transformations produce the same cache key"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
 
         key1 = generate_transformation_cache_key(source_id, transformations, format)
@@ -78,15 +81,24 @@ class TestGenerateTransformationCacheKey(TestCase):
 
         key1 = generate_transformation_cache_key(
             source_id,
-            {"crop": {"x": 0, "y": 0, "width": 800, "height": 600}, "rotate": 90},
+            [
+                {
+                    "operation": "crop",
+                    "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+                },
+                {"operation": "rotate", "params": {"angle": 90}},
+            ],
             format,
         )
         key2 = generate_transformation_cache_key(
             source_id,
-            {
-                "crop": {"x": 0, "y": 0, "width": 801, "height": 600},
-                "rotate": 90,
-            },  # we changed width on purpose
+            [
+                {
+                    "operation": "crop",
+                    "params": {"x": 0, "y": 0, "width": 801, "height": 600},
+                },
+                {"operation": "rotate", "params": {"angle": 90}},
+            ],  # we changed width on purpose
             format,
         )
 
@@ -97,10 +109,13 @@ class TestGetTransformedImageIdFromCache(TestCase):
     def test_retrieves_cached_transformation(self):
         """Test that we can retrieve a previously cached transformation"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
         expected_id = "456"
 
@@ -115,10 +130,13 @@ class TestGetTransformedImageIdFromCache(TestCase):
     def test_handles_cache_miss_gracefully(self):
         """Test that cache misses return None without errors"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
 
         # Mock the cache to return None
@@ -134,10 +152,13 @@ class TestSetTransformedImageIdToCache(TestCase):
     def test_successfully_caches_transformation(self):
         """Test that transformed image IDs are properly cached"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
         transformed_id = "456"
 
@@ -150,10 +171,13 @@ class TestSetTransformedImageIdToCache(TestCase):
     def test_continues_on_cache_failure(self):
         """Test that cache failures don't break the application flow"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
         transformed_id = "456"
 

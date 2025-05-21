@@ -1,10 +1,12 @@
-from enum import StrEnum
+import enum
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.password_validation import validate_password
+from PIL import Image
 from rest_framework import serializers
+from rest_framework.exceptions import NotFound
 
 from api.models import SourceImage, TransformationTask, TransformedImage
 from utils.utils import extract_metadata
@@ -135,33 +137,48 @@ class UploadImageSerializer(serializers.ModelSerializer):
 
     def validate_file(self, value):
         """
-        Validate the file type and size.
+        Validate the file type and size using PIL.
         """
+        try:
+            # Try opening with PIL to verify it's a valid image
+            with Image.open(value) as img:
+                if img.format and img.format.lower() not in ["jpeg", "png"]:
+                    raise serializers.ValidationError(
+                        "Invalid file type. Expected a JPEG or PNG file.",
+                        code="invalid",
+                    )
 
-        # Validate the file type
-        if value.content_type not in ["image/jpeg", "image/png"]:
+                # Validate the image dimensions
+                if (
+                    img.width > settings.IMAGE_MAX_PIXEL_SIZE
+                    or img.height > settings.IMAGE_MAX_PIXEL_SIZE
+                ):
+                    raise serializers.ValidationError(
+                        (
+                            f"Invalid image pixel size. Maximum allowed is "
+                            f"{settings.IMAGE_MAX_PIXEL_SIZE} pixels per side."
+                        ),
+                        code="invalid",
+                    )
+                if (
+                    img.width < settings.IMAGE_MIN_PIXEL_SIZE
+                    or img.height < settings.IMAGE_MIN_PIXEL_SIZE
+                ):
+                    raise serializers.ValidationError(
+                        (
+                            f"Invalid image pixel size. Minimum required is "
+                            f"{settings.IMAGE_MIN_PIXEL_SIZE} pixels per side."
+                        ),
+                        code="invalid",
+                    )
+        except Exception:  # noqa: BLE001
             raise serializers.ValidationError(
-                "Invalid file type. Expected a JPEG or PNG file.", code="invalid"
-            )
-
-        # Validate the file size
-        if (
-            value.image.width > settings.IMAGE_MAX_PIXEL_SIZE
-            or value.image.height > settings.IMAGE_MAX_PIXEL_SIZE
-        ):
-            raise serializers.ValidationError(
-                f"Invalid image pixel size. Expected a file with a maximum size of {settings.IMAGE_MAX_PIXEL_SIZE} pixels on each side.",
+                "Invalid or corrupted image file.",
                 code="invalid",
             )
-        if (
-            value.image.width < settings.IMAGE_MIN_PIXEL_SIZE
-            or value.image.height < settings.IMAGE_MIN_PIXEL_SIZE
-        ):
-            raise serializers.ValidationError(
-                f"Invalid image pixel size. Expected a file with a minimum size of {settings.IMAGE_MIN_PIXEL_SIZE} pixels on each side.",
-                code="invalid",
-            )
 
+        # Reset file pointer for further processing
+        value.seek(0)
         return value
 
 
@@ -198,13 +215,16 @@ class TransformedImageDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ("owner", "id")
 
 
-class ImageFormat(StrEnum):
+class ImageFormat(enum.Enum):
     """
     Image format choices to validate the format of the image
     """
 
     JPEG = "JPEG"
     PNG = "PNG"
+
+    def __str__(self):
+        return self.value
 
 
 class TransformationTaskSerializer(serializers.ModelSerializer):
@@ -253,11 +273,11 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
             if source_image.owner != request_user:
                 raise serializers.ValidationError("You do not own this source image.")
 
+        # if the source image does not exist, raise a not found error
         except SourceImage.DoesNotExist:
-            raise serializers.ValidationError(
-                f"Source image with id {source_image_id} not found."
+            raise NotFound(
+                detail=f"Source image with ID {source_image_id} does not exist."
             )
-
         # Add owner and original_image to the validated_data before creating
         validated_data["owner"] = request_user
         validated_data["original_image"] = source_image
@@ -270,8 +290,8 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
         # Convert to uppercase for uniformity
         # and to avoid case-sensitive comparison
 
-        if value.upper() not in ImageFormat.__members__:
+        if value.upper() not in [member.value for member in ImageFormat]:
             raise serializers.ValidationError(
-                f"Invalid format. Expected one of {ImageFormat.__members__}."
+                f"Invalid format. Expected one of {[member.value for member in ImageFormat]}."
             )
-        return value
+        return value.upper()

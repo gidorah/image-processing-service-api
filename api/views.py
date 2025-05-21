@@ -71,7 +71,7 @@ def login_user(request) -> Response:
             },
             status=status.HTTP_200_OK,
         )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class SourceImageListView(generics.ListAPIView):
@@ -79,9 +79,14 @@ class SourceImageListView(generics.ListAPIView):
     API view for listing and source images.
     """
 
-    queryset = SourceImage.objects.all()
     serializer_class = SourceImageListSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        """
+        Return only images owned by the current user.
+        """
+        return SourceImage.objects.filter(owner=self.request.user)
 
 
 class SourceImageDetailView(generics.RetrieveAPIView):
@@ -114,9 +119,14 @@ class TransformedImageListView(generics.ListAPIView):
     API view for listing and transformed images.
     """
 
-    queryset = TransformedImage.objects.all()
     serializer_class = TransformedImageListSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        """
+        Return only transformed images owned by the current user.
+        """
+        return TransformedImage.objects.filter(owner=self.request.user)
 
 
 class TransformedImageDetailView(generics.RetrieveAPIView):
@@ -156,7 +166,7 @@ def create_transformed_image(request, pk):
     )
     if not serializer.is_valid():
         # Validation errors are handled by returning the response
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=serializer.status_code)
 
     serializer.save()
 

@@ -35,7 +35,16 @@ class OriginalImageNotFound(APIException):
 
 
 class TransformationFailed(APIException):
-    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    """
+    Exception raised when a transformation task fails.
+    This could be due to various reasons, such as an invalid transformation
+    or an issue with the image processing library.
+
+    But we are so sure that our excellent code will not fail,
+    it should be bad request if it fails. :)
+    """
+
+    status_code = status.HTTP_400_BAD_REQUEST
     default_detail = (
         "The transformation task failed. Please check the logs for more details."
     )

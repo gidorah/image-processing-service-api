@@ -186,7 +186,9 @@ class TransformedImageModelTest(TestCase):
             original_image=cls.source_image,
             owner=cls.user,
             format="PNG",  # Different format for transformed
-            transformations=[{"type": "resize", "width": 100}],
+            transformations=[
+                {"operation": "resize", "params": {"width": 100, "height": 100}}
+            ],
         )
 
     def setUp(self):
@@ -316,7 +318,9 @@ class TransformationTaskModelTest(TestCase):
             owner=self.user,
             original_image=self.source_image,
             format="PNG",
-            transformations=[{"type": "resize", "width": 100}],
+            transformations=[
+                {"operation": "resize", "params": {"width": 100, "height": 100}}
+            ],
         )
 
     def test_transformation_task_str(self):
@@ -345,7 +349,7 @@ class TransformationTaskModelTest(TestCase):
         """
         self.assertEqual(
             self.transformation_task.transformations,
-            [{"type": "resize", "width": 100}],
+            [{"operation": "resize", "params": {"width": 100, "height": 100}}],
         )
 
     def test_transformation_task_format(self):

@@ -232,6 +232,43 @@ class APIImageUploadTests(APITestCase):
                 # Should reject files with mismatched content
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_upload_non_image_file(self):
+        """Test uploading a non-image file (e.g., a text file)."""
+        # Create a fake non-image file (e.g., a text file)
+        non_image_content = b"This is not an image file."
+        non_image_file = SimpleUploadedFile(
+            name="test_document.txt",
+            content=non_image_content,
+            content_type="text/plain",
+        )
+        data = {
+            "file": non_image_file,
+            "description": "Test non-image file",
+            "file_name": "test_document.txt",
+        }
+        response = self.client.post(self.upload_url, data, format="multipart")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_upload_unsupported_image_format(self):
+        """Test uploading an image with an unsupported format (e.g., TIFF)."""
+        # Create a fake TIFF image (Pillow can create TIFF in memory)
+        image = Image.new("RGB", (60, 30), color="blue")
+        buffer = BytesIO()
+        image.save(buffer, format="TIFF")
+        buffer.seek(0)
+        unsupported_image_file = SimpleUploadedFile(
+            name="test_image.tiff",
+            content=buffer.read(),
+            content_type="image/tiff",
+        )
+        data = {
+            "file": unsupported_image_file,
+            "description": "Test unsupported image format",
+            "file_name": "test_image.tiff",
+        }
+        response = self.client.post(self.upload_url, data, format="multipart")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])
 class APITransformationTests(APITestCase):
@@ -292,7 +329,9 @@ class APITransformationTests(APITestCase):
         url = reverse("create_transformed_image", kwargs={"pk": non_existent_image_pk})
         data = {"transformations": [{"operation": "grayscale"}]}
         response = self.client.post(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(
+            response.status_code, status.HTTP_404_NOT_FOUND
+        )  # Reverted to 404 as per original requirement
 
     def test_create_transformation_invalid_resize_dimensions(self):
         """Test creating a transformation with invalid resize dimensions."""
@@ -526,6 +565,7 @@ class APIPermissionTests(APITestCase):
         url = reverse("source_image_list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        print(response.data)
         # User1 should only see their own source image
         self.assertEqual(len(response.data["results"]), 1)
         self.assertEqual(response.data["results"][0]["id"], self.source_image1.id)

@@ -109,10 +109,13 @@ class TestGetTransformedImageIdFromCache(TestCase):
     def test_retrieves_cached_transformation(self):
         """Test that we can retrieve a previously cached transformation"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
         expected_id = "456"
 
@@ -127,10 +130,13 @@ class TestGetTransformedImageIdFromCache(TestCase):
     def test_handles_cache_miss_gracefully(self):
         """Test that cache misses return None without errors"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
 
         # Mock the cache to return None
@@ -165,10 +171,13 @@ class TestSetTransformedImageIdToCache(TestCase):
     def test_continues_on_cache_failure(self):
         """Test that cache failures don't break the application flow"""
         source_id = "123"
-        transformations = {
-            "crop": {"x": 0, "y": 0, "width": 800, "height": 600},
-            "rotate": 90,
-        }
+        transformations = [
+            {
+                "operation": "crop",
+                "params": {"x": 0, "y": 0, "width": 800, "height": 600},
+            },
+            {"operation": "rotate", "params": {"angle": 90}},
+        ]
         format = "JPEG"
         transformed_id = "456"
 

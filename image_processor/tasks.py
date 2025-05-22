@@ -167,7 +167,7 @@ def _save_result_image(
         # Create Django File
         transformed_image_file = File(image_buffer, name=file_name)
 
-        # Create TransformedImage record (original lines 92-101)
+        # Create TransformedImage record
         result_image = TransformedImage.objects.create(
             owner=task.owner,
             file=transformed_image_file,

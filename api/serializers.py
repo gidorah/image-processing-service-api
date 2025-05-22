@@ -258,7 +258,8 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """
-        Create a TransformationTask, associating the SourceImage using the 'pk' from the context.
+        Create a TransformationTask, associating the SourceImage
+        using the 'pk' from the context.
         """
         source_image_id = self.context.get("pk")
         if not source_image_id:
@@ -292,6 +293,8 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
 
         if value.upper() not in [member.value for member in ImageFormat]:
             raise serializers.ValidationError(
-                f"Invalid format. Expected one of {[member.value for member in ImageFormat]}."
+                f"Invalid format. Expected one of {
+                    [member.value for member in ImageFormat]
+                }."
             )
         return value.upper()

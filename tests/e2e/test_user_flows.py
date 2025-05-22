@@ -87,7 +87,6 @@ class CompleteUserFlowTests(APITestCase):
             "description": self.image_description,
         }
         response = self.client.post(upload_url, upload_data, format="multipart")
-        print(f"Upload image response: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         source_images = SourceImage.objects.filter(file_name="test_image")
@@ -105,7 +104,6 @@ class CompleteUserFlowTests(APITestCase):
             ]
         }
         response = self.client.post(create_transform_url, transform_data, format="json")
-        print(f"Create transformation response: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         task_id = response.data["id"]
@@ -113,8 +111,6 @@ class CompleteUserFlowTests(APITestCase):
         # 5. Verify task creation
         get_transform_url = reverse("task-detail", kwargs={"pk": task_id})
         response = self.client.get(get_transform_url)
-
-        print(f"Task detail response: {response.data}")
 
         # Since we force celery to run synchronously in tests,
         # we can check the success status directly
@@ -126,7 +122,6 @@ class CompleteUserFlowTests(APITestCase):
         detail_url = reverse("transformed_image_detail", kwargs={"pk": source_image.pk})
 
         response = self.client.get(detail_url)
-        print(f"Transformed image detail response: {response.data}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         transformed_file_name = f"{source_image.file_name}_{task_id}.{response.data['metadata']['format'].lower()}"
         self.assertEqual(
@@ -142,6 +137,5 @@ class CompleteUserFlowTests(APITestCase):
 
         # Should have exactly one transformed image
         results = response.data["results"]
-        print(f"Transformed images: {results}")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["id"], transformed_image_id)

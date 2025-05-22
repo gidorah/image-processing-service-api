@@ -119,7 +119,9 @@ class CompleteUserFlowTests(APITestCase):
 
         transformed_image_id = response.data["result_image"]
         # # 6. Retrieve and verify transformed image
-        detail_url = reverse("transformed_image_detail", kwargs={"pk": source_image.pk})
+        detail_url = reverse(
+            "transformed_image_detail", kwargs={"pk": transformed_image_id}
+        )
 
         response = self.client.get(detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -56,3 +56,6 @@ posting-collection/
 
 # Local test files
 images/
+
+# Copilot instructions
+.github/copilot-instructions.md

@@ -445,7 +445,7 @@ class APIPermissionTests(APITestCase):
         # User1 tries to access source_image2 (owned by user2)
         url = reverse("source_image_detail", kwargs={"pk": self.source_image2.pk})
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_user_cannot_list_other_user_transformed_images(self):
         """Test that a user cannot list transformed images of another user."""
@@ -465,7 +465,7 @@ class APIPermissionTests(APITestCase):
             "transformed_image_detail", kwargs={"pk": self.transformed_image2.pk}
         )
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])

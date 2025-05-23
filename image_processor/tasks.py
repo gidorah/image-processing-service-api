@@ -1,7 +1,8 @@
 import io
 import logging
+from collections.abc import Callable
 
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from django.core.files import File
 from django.db.models.fields.files import ImageFieldFile
 
@@ -23,6 +24,10 @@ from utils.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Defining Callable type for transformation functions
+# to catch potential type errors
+TransformFunc = Callable[..., Image.Image]
 
 
 def _get_task_and_set_in_progress(task_id) -> TransformationTask:
@@ -71,6 +76,13 @@ def _load_image_and_determine_format(
         logger.info(
             f"Format not found for task: {task.id}. Trying to get from metadata."
         )
+
+        if source_image_instance.metadata is None:
+            logger.error(f"Metadata not found for task: {task.id}. Format not found.")
+            raise OriginalImageNotFound(
+                detail="Metadata not found for task: {task_id}. Format not found."
+            )
+
         image_format = source_image_instance.metadata.get("format")
 
         # If format is still None, would fail later
@@ -106,7 +118,7 @@ def _apply_processing_steps(
                 f"Invalid operation: {operation} for task: {task.id}."
             )
 
-        transform_func = TRANSFORMATION_MAP[operation]
+        transform_func: TransformFunc = TRANSFORMATION_MAP[operation]
 
         logger.info(f"Applying transformation {operation} with params {params}")
 
@@ -213,7 +225,8 @@ def apply_transformations(task_id):
         # If cached image ID is found, set it to task and don't apply transformations
         if cached_image_id:
             logger.info(
-                f"Transformed image found in cache for task: {task.id}. Won't apply transformations."
+                f"Transformed image found in cache for task: {task.id}. "
+                "Won't apply transformations."
             )
             task.result_image_id = cached_image_id
             task.status = TaskStatus.SUCCESS
@@ -283,7 +296,8 @@ def rotate(image: Image.Image, degrees) -> Image.Image:
 
 def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     """
-    Applies a standard, semi-transparent, diagonal watermark text across the image center.
+    Applies a standard, semi-transparent, diagonal watermark text
+    across the image center.
 
     Args:
         image: The base image to watermark.
@@ -311,9 +325,7 @@ def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     # rotate text 45 degrees
     watermark_image = watermark_image.rotate(45)
 
-    result_image = Image.alpha_composite(image, watermark_image)
-
-    return result_image
+    return Image.alpha_composite(image, watermark_image)
 
 
 def flip(image: Image.Image) -> Image.Image:
@@ -418,7 +430,7 @@ This dictionary won't include the "change_format" transformation
 because it's not a transformation function. And format change
 is done in the apply_transformations function.
 """
-TRANSFORMATION_MAP = {
+TRANSFORMATION_MAP: dict[str, TransformFunc] = {
     "crop": crop,
     "resize": resize,
     "rotate": rotate,

@@ -160,7 +160,8 @@ def create_transformed_image(request, pk):
     task tracking.
     """
 
-    # Pass context={'request': request, 'pk': pk} to make request and pk available in serializer context
+    # Pass context={'request': request, 'pk': pk} to make request and pk
+    # available in serializer context
     serializer = TransformationTaskSerializer(
         data=request.data, context={"request": request, "pk": pk}
     )

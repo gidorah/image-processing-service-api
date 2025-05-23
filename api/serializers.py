@@ -10,6 +10,12 @@ from rest_framework.exceptions import NotFound
 
 from api.models import SourceImage, TransformationTask, TransformedImage
 from utils.utils import extract_metadata
+from utils.security import (
+    sanitize_filename,
+    escape_html_content,
+    sanitize_metadata,
+    sanitize_transformations,
+)
 
 User = get_user_model()
 
@@ -128,11 +134,25 @@ class UploadImageSerializer(serializers.ModelSerializer):
             "description": {"required": True},
         }
 
+    def validate_file_name(self, value):
+        """
+        Sanitize the filename to prevent security issues.
+        """
+        if value:
+            return sanitize_filename(value)
+        return value
+
+    def validate_description(self, value):
+        """
+        Escape HTML content in description to prevent XSS.
+        """
+        return escape_html_content(value)
+
     def create(self, validated_data):
         # Extract and set metadata
-        validated_data["metadata"] = extract_metadata(
-            image=validated_data["file"].image
-        )
+        metadata = extract_metadata(image=validated_data["file"].image)
+        # Sanitize metadata to prevent XSS
+        validated_data["metadata"] = sanitize_metadata(metadata)
         return super().create(validated_data)
 
     def validate_file(self, value):
@@ -255,6 +275,12 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
             "updated_at",
             "error_message",
         )
+
+    def validate_transformations(self, value):
+        """
+        Sanitize transformations to prevent XSS and injection attacks.
+        """
+        return sanitize_transformations(value)
 
     def create(self, validated_data):
         """

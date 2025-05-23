@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "api",
     "image_processor",
     "storages",

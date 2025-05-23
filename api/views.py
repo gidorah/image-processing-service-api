@@ -94,9 +94,14 @@ class SourceImageDetailView(generics.RetrieveAPIView):
     API view for retrieving a source image.
     """
 
-    queryset = SourceImage.objects.all()
     serializer_class = SourceImageDetailSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Return only images owned by the current user.
+        """
+        return SourceImage.objects.filter(owner=self.request.user)
 
 
 @api_view(["POST"])
@@ -134,9 +139,14 @@ class TransformedImageDetailView(generics.RetrieveAPIView):
     API view for retrieving a transformed image.
     """
 
-    queryset = TransformedImage.objects.all()
     serializer_class = TransformedImageDetailSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Return only transformed images owned by the current user.
+        """
+        return TransformedImage.objects.filter(owner=self.request.user)
 
 
 class TransformationTaskViewSet(viewsets.ReadOnlyModelViewSet):
@@ -144,13 +154,18 @@ class TransformationTaskViewSet(viewsets.ReadOnlyModelViewSet):
     API view for listing and retrieving transformation tasks.
     """
 
-    queryset = TransformationTask.objects.all()
     serializer_class = TransformationTaskSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Return only transformation tasks owned by the current user.
+        """
+        return TransformationTask.objects.filter(owner=self.request.user)
 
 
 @api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated, IsOwner])
+@permission_classes([permissions.IsAuthenticated])
 def create_transformed_image(request, pk):
     """
     API view for creating a transformed image.
@@ -160,6 +175,15 @@ def create_transformed_image(request, pk):
     task tracking.
     """
 
+    # Check if the source image exists and belongs to the user
+    try:
+        SourceImage.objects.get(pk=pk, owner=request.user)
+    except SourceImage.DoesNotExist:
+        return Response(
+            {"error": "Source image not found or not owned by user"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
     # Pass context={'request': request, 'pk': pk} to make request and pk
     # available in serializer context
     serializer = TransformationTaskSerializer(
@@ -167,7 +191,7 @@ def create_transformed_image(request, pk):
     )
     if not serializer.is_valid():
         # Validation errors are handled by returning the response
-        return Response(serializer.errors, status=serializer.status_code)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     serializer.save()
 

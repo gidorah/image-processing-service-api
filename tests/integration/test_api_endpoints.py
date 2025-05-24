@@ -356,7 +356,6 @@ class APIThrottlingTests(APITestCase):
             "password": f"{self.anon_throttle_limit}==testpass",
         }
         response = self.client.post(self.register_url, test_user_data)
-        print(response.data)
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
 

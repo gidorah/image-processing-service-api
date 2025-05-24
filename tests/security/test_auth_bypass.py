@@ -195,6 +195,7 @@ class AuthBypassTest(SecurityTestBase):
         tokens = self.get_tokens_for_user(self.user_a)
 
         mixed_cases = [
+            "Bearer",
             "bEaReR",
             "BEARER",
             "bearer",

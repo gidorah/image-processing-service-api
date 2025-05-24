@@ -15,18 +15,19 @@ class AuthBypassTest(SecurityTestBase):
             ("source_image_list", "GET"),
             ("source_image_upload", "POST"),
             ("transformed_image_list", "GET"),
+            ("task-list", "GET"),  # TransformationTaskViewSet list endpoint
         ]
 
         for endpoint_name, method in protected_endpoints:
             with self.subTest(endpoint=endpoint_name, method=method):
-                # Ensure no authentication is set
                 self.clear_authentication()
-
                 url = reverse(endpoint_name)
                 if method == "GET":
                     response = self.client.get(url)
                 elif method == "POST":
                     response = self.client.post(url, {})
+                else:
+                    raise ValueError(f"Unsupported method: {method}")
 
                 self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -35,6 +36,16 @@ class AuthBypassTest(SecurityTestBase):
         # Create test image first
         self.authenticate_user(self.user_a)
         source_image = self.create_test_source_image(self.user_a)
+
+        # Create a transformation task for testing task detail endpoint
+        from api.models import TransformationTask
+
+        task = TransformationTask.objects.create(
+            owner=self.user_a,
+            original_image=source_image,
+            transformations=[{"resize": {"width": 100, "height": 100}}],
+            format="JPEG",
+        )
 
         # Clear authentication and try to access
         self.clear_authentication()
@@ -46,6 +57,7 @@ class AuthBypassTest(SecurityTestBase):
                 source_image.pk,
             ),  # Will be 404 but should be 401 first
             ("create_transformed_image", source_image.pk),
+            ("task-detail", task.pk),  # TransformationTaskViewSet detail endpoint
         ]
 
         for endpoint_name, pk in protected_detail_endpoints:

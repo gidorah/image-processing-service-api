@@ -14,6 +14,8 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import Any, Dict
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -103,7 +105,6 @@ WSGI_APPLICATION = "image_processing_service.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 if "test" in sys.argv:
     DATABASES = {
         "default": {
@@ -123,56 +124,48 @@ else:
         }
     }
 
-# AWS S3 settings
+# Base configuration
+STORAGES: Dict[str, Dict[str, Any]] = {
+    "default": {"BACKEND": ""},
+    "staticfiles": {"BACKEND": ""},
+}
+
 if "test" in sys.argv:
-    AWS_ACCESS_KEY_ID = "test_access_key"
-    AWS_SECRET_ACCESS_KEY = "test_secret_key"
-    AWS_STORAGE_BUCKET_NAME = "test_bucket_name"
-    AWS_S3_REGION_NAME = "us-east-1"
     DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
-    STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
-    }
+    STORAGES.update(
+        {
+            "default": {
+                "BACKEND": "django.core.files.storage.FileSystemStorage",
+                "OPTIONS": {
+                    "location": tempfile.mkdtemp(prefix="django_test_"),
+                },
+            },
+            "staticfiles": {
+                "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            },
+        }
+    )
 else:
-    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
-    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME")
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-    # Optional: Set object parameters (e.g., caching)
-    AWS_S3_OBJECT_PARAMETERS = {
-        "CacheControl": "max-age=86400",  # Cache for 1 day (adjust as needed)
+    # AWS configuration
+    aws_config = {
+        "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
+        "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
+        "region_name": os.environ.get("AWS_S3_REGION_NAME"),
     }
 
-    # Optional: Prevent accidental public access (recommended)
-    AWS_DEFAULT_ACL = None
-
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "access_key": AWS_ACCESS_KEY_ID,
-                "secret_key": AWS_SECRET_ACCESS_KEY,
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "region_name": AWS_S3_REGION_NAME,
+    STORAGES.update(
+        {
+            "default": {
+                "BACKEND": "storages.backends.s3.S3Storage",
+                "OPTIONS": aws_config,
             },
-        },
-        "staticfiles": {  # for collectstatic, serving the static files
-            "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "access_key": AWS_ACCESS_KEY_ID,
-                "secret_key": AWS_SECRET_ACCESS_KEY,
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "region_name": AWS_S3_REGION_NAME,
-                "location": "static",  # Recommended to separate from media files
+            "staticfiles": {
+                "BACKEND": "storages.backends.s3.S3Storage",
+                "OPTIONS": {**aws_config, "location": "static"},
             },
-        },
-    }
+        }
+    )
 
 
 CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/1")
@@ -353,5 +346,8 @@ LOGGING = {
 
 # Validation settings
 
-IMAGE_MAX_PIXEL_SIZE = os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096)
-IMAGE_MIN_PIXEL_SIZE = os.getenv("IMAGE_MIN_PIXEL_SIZE", 100)
+IMAGE_MAX_PIXEL_SIZE = int(os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096))
+IMAGE_MIN_PIXEL_SIZE = int(os.getenv("IMAGE_MIN_PIXEL_SIZE", 100))
+IMAGE_MAX_FILE_SIZE_IN_BYTES = int(
+    os.getenv("IMAGE_MAX_FILE_SIZE_IN_BYTE", 10 * 1024 * 1024)
+)

@@ -1,4 +1,5 @@
 import os
+from django.conf import settings
 from django.urls import reverse
 from rest_framework import status
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -83,32 +84,43 @@ class FileUploadSecurityTest(SecurityTestBase):
         """Test that file size limits are enforced"""
         self.authenticate_user(self.user_a)
 
-        # Create a large file (simulated - don't actually create huge files in tests)
-        large_content = b"x" * (10 * 1024 * 1024)  # 10MB
+        # Since creating a large file is time consuming, first
+        # check if there is a file for the test
+        if not os.path.exists("tests/test_files/large_image.png"):
+            # Create a large image file > File Size Limit
+            large_file = self.create_test_image_file(
+                "large_image.png", size=(65500, 65500), format="PNG"
+            )
+
+            # Save the file for future tests
+            with open("tests/test_files/large_image.png", "wb") as f:
+                f.write(large_file.read())
+
         large_file = SimpleUploadedFile(
-            "large_image.jpg", large_content, content_type="image/jpeg"
+            "large_image.png",
+            open("tests/test_files/large_image.png", "rb").read(),
+            content_type="image/png",
         )
+
+        print(f"large file size: {large_file.size}")
+
+        # Check if the file size is greater than the limit
+        self.assertGreater(large_file.size, settings.IMAGE_MAX_FILE_SIZE_IN_BYTES)
 
         response = self.client.post(
             reverse("source_image_upload"),
             {
                 "file": large_file,
-                "file_name": "large_image.jpg",
+                "file_name": "large_image.png",
                 "description": "Large image test",
                 "metadata": "{}",
             },
         )
 
-        # Should be rejected due to size (if size limits are configured)
-        # or handled gracefully
-        self.assertIn(
-            response.status_code,
-            [
-                status.HTTP_201_CREATED,
-                status.HTTP_400_BAD_REQUEST,
-                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            ],
-        )
+        print(f"large file response: {response.content}")
+
+        # Should be rejected due to size
+        self.assertEqual(response.status_code, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
 
     def test_malicious_filenames_sanitized(self):
         """Test that malicious filenames are properly sanitized"""

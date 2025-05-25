@@ -1,14 +1,14 @@
 import base64
-import jwt
 from datetime import datetime, timedelta
 from io import BytesIO
-from PIL import Image
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+import jwt
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.conf import settings
+from django.test import TestCase, override_settings
+from PIL import Image
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -79,23 +79,17 @@ class SecurityTestBase(TestCase):
             filename, image_io.getvalue(), content_type=f"image/{format.lower()}"
         )
 
-    def create_test_source_image(self, owner, filename="test.jpg"):
+    def create_test_source_image(self, owner, filename="test.jpg") -> SourceImage:
         """Create a test source image for a user"""
         image_file = self.create_test_image_file(filename)
 
-        # Mock S3 upload for tests
-        with patch("storages.backends.s3boto3.S3Boto3Storage.save") as mock_save:
-            mock_save.return_value = f"images/{filename}"
-
-            source_image = SourceImage.objects.create(
-                file=image_file,
-                file_name=filename,
-                description="Test image description",
-                metadata={"test": "data"},
-                owner=owner,
-            )
-
-        return source_image
+        return SourceImage.objects.create(
+            file=image_file,
+            file_name=filename,
+            description="Test image description",
+            metadata={"test": "data"},
+            owner=owner,
+        )
 
     def create_invalid_jwt_token(
         self, payload=None, secret_key=None, algorithm="HS256"

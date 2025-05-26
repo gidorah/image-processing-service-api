@@ -1,9 +1,9 @@
 import os
+
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
-from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock import patch
 
 from tests.security.base import SecurityTestBase
 
@@ -74,11 +74,7 @@ class FileUploadSecurityTest(SecurityTestBase):
             },
         )
 
-        # Depending on implementation, this might be accepted or rejected
-        # The key is that it should be handled consistently and safely
-        self.assertIn(
-            response.status_code, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
-        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_file_size_limits_enforced(self):
         """Test that file size limits are enforced"""

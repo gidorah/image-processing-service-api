@@ -1,7 +1,7 @@
 import base64
+import os
 from datetime import datetime, timedelta
 from io import BytesIO
-from unittest.mock import patch
 
 import jwt
 from django.conf import settings
@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-
+import numpy as np
 from api.models import SourceImage
 
 User = get_user_model()
@@ -78,6 +78,46 @@ class SecurityTestBase(TestCase):
         return SimpleUploadedFile(
             filename, image_io.getvalue(), content_type=f"image/{format.lower()}"
         )
+
+    def create_large_jpg(
+        self, width=4096, height=4096, filename="large_image.jpg", quality=95
+    ):
+        """
+        Creates a JPG image with random pixel data and high quality to ensure a large file size.
+
+        Args:
+            width (int): The width of the image in pixels.
+            height (int): The height of the image in pixels.
+            filename (str): The name of the output JPG file.
+            quality (int): The JPEG quality setting (0-100). Higher quality means larger file size.
+        """
+        print(
+            f"\nAttempting to create a {width}x{height} JPG image with quality={quality}..."
+        )
+
+        # Generate random 8-bit integer data for R, G, B channels
+        random_data = np.random.randint(0, 256, size=(height, width, 3), dtype=np.uint8)
+
+        # Create a Pillow Image object from the NumPy array
+        img = Image.fromarray(random_data, "RGB")
+
+        # Save the image as JPG with a high quality setting.
+        # Even with high quality, JPG is lossy, so it might be harder to get
+        # extremely large files compared to PNG for the same content.
+        img.save(
+            filename, quality=quality, subsampling=0
+        )  # subsampling=0 for highest quality
+
+        # Get the file size in MB
+        file_size_mb = os.path.getsize(filename) / (1024 * 1024)
+        print(f"JPG image '{filename}' created successfully.")
+        print(f"File size: {file_size_mb:.2f} MB")
+        if file_size_mb > 10:
+            print("File size is greater than 10MB, as requested.")
+        else:
+            print(
+                "File size is NOT greater than 10MB. Consider increasing dimensions or quality."
+            )
 
     def create_test_source_image(self, owner, filename="test.jpg") -> SourceImage:
         """Create a test source image for a user"""

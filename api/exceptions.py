@@ -49,3 +49,13 @@ class TransformationFailed(APIException):
         "The transformation task failed. Please check the logs for more details."
     )
     default_code = "transformation_failed"
+
+
+class FileSizeExceededError(APIException):
+    """
+    Exception raised when a file size exceeds the maximum allowed size.
+    """
+
+    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    default_detail = "File size exceeds the maximum allowed size."
+    default_code = "file_size_exceeded"

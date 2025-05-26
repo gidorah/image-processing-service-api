@@ -12,10 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 import sys
+import tempfile
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict
-import tempfile
 
 from dotenv import load_dotenv
 
@@ -33,12 +33,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if "test" in sys.argv:
     SECRET_KEY = "dummy_secret_key_for_testing"
 else:
-    SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+    SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dummy_secret_key_for_development")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS: list = []
 
 
 # Application definition
@@ -179,7 +179,8 @@ CACHES = {
         ),  # 2 hours | This value should not exceed expired image cleanup time
         # "OPTIONS": {
         #     "MAX_ENTRIES": 1000,
-        #     "CULL_FREQUENCY": 10,  # 10% of the cache will be cleared when it reaches the limit
+        #     "CULL_FREQUENCY": 10,  # 10% of the cache will be cleared
+        # when it reaches the limit
         # },
     }
 }
@@ -251,7 +252,7 @@ if DEBUG and REMOTE_DEBUGGING_PORT:
     print("Starting debugpy with port", DEBUG_PORT)
 
     try:
-        import debugpy
+        import debugpy  # type: ignore
 
         debugpy.listen(("0.0.0.0", DEBUG_PORT))
         print(f"Debugger is listening on port {DEBUG_PORT}")
@@ -291,7 +292,8 @@ if SENTRY_DSN:
             "continuous_profiling_auto_start": True,
         },
         # Add data like request headers and IP for users, if applicable;
-        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/
+        # for more info
         send_default_pii=True,
     )
 

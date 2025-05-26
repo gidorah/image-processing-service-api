@@ -80,22 +80,18 @@ class FileUploadSecurityTest(SecurityTestBase):
         """Test that file size limits are enforced"""
         self.authenticate_user(self.user_a)
 
+        large_file_path = "tests/test_files/large_image.jpg"
+
         # Since creating a large file is time consuming, first
         # check if there is a file for the test
-        if not os.path.exists("tests/test_files/large_image.png"):
+        if not os.path.exists(large_file_path):
             # Create a large image file > File Size Limit
-            large_file = self.create_test_image_file(
-                "large_image.png", size=(65500, 65500), format="PNG"
-            )
-
-            # Save the file for future tests
-            with open("tests/test_files/large_image.png", "wb") as f:
-                f.write(large_file.read())
+            self.create_large_jpg(filename=large_file_path)
 
         large_file = SimpleUploadedFile(
-            "large_image.png",
-            open("tests/test_files/large_image.png", "rb").read(),
-            content_type="image/png",
+            "large_image.jpg",
+            open(large_file_path, "rb").read(),
+            content_type="image/jpg",
         )
 
         print(f"large file size: {large_file.size}")
@@ -107,7 +103,7 @@ class FileUploadSecurityTest(SecurityTestBase):
             reverse("source_image_upload"),
             {
                 "file": large_file,
-                "file_name": "large_image.png",
+                "file_name": "large_image.jpg",
                 "description": "Large image test",
                 "metadata": "{}",
             },

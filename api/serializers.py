@@ -8,14 +8,15 @@ from PIL import Image
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 
+from api.exceptions import FileSizeExceededError
 from api.models import SourceImage, TransformationTask, TransformedImage
-from utils.utils import extract_metadata
 from utils.security import (
-    sanitize_filename,
     escape_html_content,
+    sanitize_filename,
     sanitize_metadata,
     sanitize_transformations,
 )
+from utils.utils import extract_metadata
 
 User = get_user_model()
 
@@ -159,43 +160,42 @@ class UploadImageSerializer(serializers.ModelSerializer):
         """
         Validate the file type and size using PIL.
         """
-        try:
-            # Try opening with PIL to verify it's a valid image
-            with Image.open(value) as img:
-                if img.format and img.format.lower() not in ["jpeg", "png"]:
-                    raise serializers.ValidationError(
-                        "Invalid file type. Expected a JPEG or PNG file.",
-                        code="invalid",
-                    )
 
-                # Validate the image dimensions
-                if (
-                    img.width > settings.IMAGE_MAX_PIXEL_SIZE
-                    or img.height > settings.IMAGE_MAX_PIXEL_SIZE
-                ):
-                    raise serializers.ValidationError(
-                        (
-                            f"Invalid image pixel size. Maximum allowed is "
-                            f"{settings.IMAGE_MAX_PIXEL_SIZE} pixels per side."
-                        ),
-                        code="invalid",
-                    )
-                if (
-                    img.width < settings.IMAGE_MIN_PIXEL_SIZE
-                    or img.height < settings.IMAGE_MIN_PIXEL_SIZE
-                ):
-                    raise serializers.ValidationError(
-                        (
-                            f"Invalid image pixel size. Minimum required is "
-                            f"{settings.IMAGE_MIN_PIXEL_SIZE} pixels per side."
-                        ),
-                        code="invalid",
-                    )
-        except Exception:  # noqa: BLE001
-            raise serializers.ValidationError(
-                "Invalid or corrupted image file.",
-                code="invalid",
-            )
+        # Try opening with PIL to verify it's a valid image
+        with Image.open(value) as img:
+            if img.format and img.format.lower() not in ["jpeg", "png"]:
+                raise serializers.ValidationError(
+                    "Invalid file type. Expected a JPEG or PNG file.",
+                    code="invalid",
+                )
+
+            # Validate the image size
+            if value.size > settings.IMAGE_MAX_FILE_SIZE_IN_BYTES:
+                raise FileSizeExceededError()
+
+            # Validate the image dimensions
+            if (
+                img.width > settings.IMAGE_MAX_PIXEL_SIZE
+                or img.height > settings.IMAGE_MAX_PIXEL_SIZE
+            ):
+                raise serializers.ValidationError(
+                    (
+                        f"Invalid image pixel size. Maximum allowed is "
+                        f"{settings.IMAGE_MAX_PIXEL_SIZE} pixels per side."
+                    ),
+                    code="invalid",
+                )
+            if (
+                img.width < settings.IMAGE_MIN_PIXEL_SIZE
+                or img.height < settings.IMAGE_MIN_PIXEL_SIZE
+            ):
+                raise serializers.ValidationError(
+                    (
+                        f"Invalid image pixel size. Minimum required is "
+                        f"{settings.IMAGE_MIN_PIXEL_SIZE} pixels per side."
+                    ),
+                    code="invalid",
+                )
 
         # Reset file pointer for further processing
         value.seek(0)

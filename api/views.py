@@ -1,5 +1,8 @@
-from rest_framework import generics, permissions, status, viewsets
+import logging
+
+from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -16,6 +19,8 @@ from api.serializers import (
     UploadImageSerializer,
 )
 from image_processor.tasks import apply_transformations
+
+logger = logging.getLogger(__name__)
 
 
 def get_tokens_for_user(user) -> dict[str, str]:
@@ -113,10 +118,17 @@ def upload_image(request) -> Response:
 
     serializer = UploadImageSerializer(data=request.data)
 
-    if serializer.is_valid():
+    try:
+        serializer.is_valid(raise_exception=True)
         serializer.save(owner=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except APIException as e:
+        return Response(e.detail, status=e.status_code)
+    except serializers.ValidationError as e:
+        return Response(e.detail, status=e.status_code)
+    except Exception as e:
+        logger.error(f"upload_image error: {e}")
+        raise e
 
 
 class TransformedImageListView(generics.ListAPIView):

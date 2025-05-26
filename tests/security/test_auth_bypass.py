@@ -55,16 +55,15 @@ class AuthBypassTest(SecurityTestBase):
             (
                 "transformed_image_detail",
                 source_image.pk,
-            ),  # Will be 404 but should be 401 first
+            ),
             ("create_transformed_image", source_image.pk),
-            ("task-detail", task.pk),  # TransformationTaskViewSet detail endpoint
+            ("task-detail", task.pk),
         ]
 
         for endpoint_name, pk in protected_detail_endpoints:
             with self.subTest(endpoint=endpoint_name, pk=pk):
                 url = reverse(endpoint_name, kwargs={"pk": pk})
                 response = self.client.get(url)
-                # Should be 401 (unauthorized) before 404 (not found)
                 self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_malformed_authorization_header_rejected(self):

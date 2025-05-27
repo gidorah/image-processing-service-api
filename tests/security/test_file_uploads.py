@@ -180,6 +180,8 @@ class FileUploadSecurityTest(SecurityTestBase):
                                 returned_filename,
                                 f"Dangerous character '{char}' not sanitized in filename",
                             )
+                else:
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_executable_file_upload_rejected(self):
         """Test that executable files are rejected even with image extensions"""

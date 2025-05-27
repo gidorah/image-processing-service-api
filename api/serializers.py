@@ -156,10 +156,40 @@ class UploadImageSerializer(serializers.ModelSerializer):
         validated_data["metadata"] = sanitize_metadata(metadata)
         return super().create(validated_data)
 
+    def _check_executable_signatures(self, value):
+        """Check for executable signatures in the file."""
+
+        # Check for executable signatures in the first few bytes
+        value.seek(0)
+        header = value.read(512)  # Read first 512 bytes
+        value.seek(0)
+
+        # Check for common executable signatures
+        executable_signatures = [
+            b"MZ",  # PE (Windows)
+            b"\x7fELF",  # ELF (Linux)
+            b"\xfe\xed\xfa\xce",  # Mach-O (macOS)
+            b"\xca\xfe\xba\xbe",  # Java class
+            b"#!/",  # Shebang scripts
+        ]
+
+        for sig in executable_signatures:
+            if header.startswith(sig):
+                raise serializers.ValidationError(
+                    "File contains executable signatures", code="invalid"
+                )
+
+        value.seek(0)
+
     def validate_file(self, value):
         """
         Validate the file type and size using PIL.
         """
+
+        # First check for executable signatures for
+        # polyglot files that could be interpreted as images
+        # but are actually executable files
+        self._check_executable_signatures(value)
 
         # Try opening with PIL to verify it's a valid image
         with Image.open(value) as img:

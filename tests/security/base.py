@@ -101,23 +101,10 @@ class SecurityTestBase(TestCase):
         # Create a Pillow Image object from the NumPy array
         img = Image.fromarray(random_data, "RGB")
 
-        # Save the image as JPG with a high quality setting.
-        # Even with high quality, JPG is lossy, so it might be harder to get
-        # extremely large files compared to PNG for the same content.
         img.save(
             filename, quality=quality, subsampling=0
         )  # subsampling=0 for highest quality
 
-        # Get the file size in MB
-        file_size_mb = os.path.getsize(filename) / (1024 * 1024)
-        print(f"JPG image '{filename}' created successfully.")
-        print(f"File size: {file_size_mb:.2f} MB")
-        if file_size_mb > 10:
-            print("File size is greater than 10MB, as requested.")
-        else:
-            print(
-                "File size is NOT greater than 10MB. Consider increasing dimensions or quality."
-            )
 
     def create_test_source_image(self, owner, filename="test.jpg") -> SourceImage:
         """Create a test source image for a user"""

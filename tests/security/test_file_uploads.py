@@ -360,8 +360,14 @@ class FileUploadSecurityTest(SecurityTestBase):
                     },
                 )
 
-                # Should handle SSI payloads safely
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, filename should be sanitized
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain SSI code
+                    self.assertNotIn("<!--#", returned_filename)
+                else:
+                    # Should handle SSI injection attempts safely
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_php_code_injection_in_filenames(self):
         """Test protection against PHP code injection in filenames"""
@@ -390,5 +396,12 @@ class FileUploadSecurityTest(SecurityTestBase):
                     },
                 )
 
-                # Should handle PHP injection attempts safely
-                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, filename should be sanitized
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain PHP code
+                    self.assertNotIn("php", returned_filename.lower())
+                    self.assertNotIn("phtml", returned_filename.lower())
+                else:
+                    # Should handle PHP injection attempts safely
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

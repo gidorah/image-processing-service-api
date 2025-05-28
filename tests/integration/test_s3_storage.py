@@ -17,6 +17,11 @@ from PIL import Image
 
 from tests.utils import create_test_image_file
 
+AWS_STORAGE_BUCKET_NAME = "test-image-processing-bucket"
+AWS_S3_REGION_NAME = "us-east-1"
+AWS_ACCESS_KEY_ID = "testing"
+AWS_SECRET_ACCESS_KEY = "testing"
+
 # Test settings that ensure we use S3 storage with moto
 TEST_S3_SETTINGS = {
     "STORAGES": {
@@ -30,10 +35,10 @@ TEST_S3_SETTINGS = {
             },
         }
     },
-    "AWS_STORAGE_BUCKET_NAME": "test-image-processing-bucket",
-    "AWS_S3_REGION_NAME": "us-east-1",
-    "AWS_ACCESS_KEY_ID": "testing",
-    "AWS_SECRET_ACCESS_KEY": "testing",
+    "AWS_STORAGE_BUCKET_NAME": AWS_STORAGE_BUCKET_NAME,
+    "AWS_S3_REGION_NAME": AWS_S3_REGION_NAME,
+    "AWS_ACCESS_KEY_ID": AWS_ACCESS_KEY_ID,
+    "AWS_SECRET_ACCESS_KEY": AWS_SECRET_ACCESS_KEY,
 }
 
 
@@ -53,11 +58,11 @@ class S3StorageIntegrationTests(TestCase):
         # Create the S3 bucket in moto
         self.s3_client = boto3.client(
             "s3",
-            region_name="us-east-1",
-            aws_access_key_id="testing",
-            aws_secret_access_key="testing",
+            region_name=AWS_S3_REGION_NAME,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
         )
-        self.bucket_name = "test-image-processing-bucket"
+        self.bucket_name = AWS_STORAGE_BUCKET_NAME
         self.s3_client.create_bucket(Bucket=self.bucket_name)
 
         # Prepare test files

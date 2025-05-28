@@ -7,10 +7,8 @@ Uses moto to mock AWS S3 service for reliable testing.
 """
 
 import uuid
-from io import BytesIO
 
 import boto3
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
@@ -18,7 +16,6 @@ from moto import mock_aws
 from PIL import Image
 
 from tests.utils import create_test_image_file
-
 
 # Test settings that ensure we use S3 storage with moto
 TEST_S3_SETTINGS = {

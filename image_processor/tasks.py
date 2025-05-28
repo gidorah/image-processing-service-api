@@ -146,7 +146,8 @@ def _apply_processing_steps(
                 exc_info=True,
             )
             raise TransformationFailed(
-                detail=f"Error applying transformation {operation} for task: {task.id}: {e}"
+                detail=f"Error applying transformation {operation} "
+                f"for task: {task.id}: {e}"
             )
 
     # Ensure RGB mode if image is RGBA
@@ -400,7 +401,7 @@ def blur(image: Image.Image) -> Image.Image | None:
 
 
 # Define available filters from ImageFilter
-AVAILABLE_FILTERS = {
+AVAILABLE_FILTERS: dict[str, TransformFunc] = {
     "BLUR": blur,
     "GRAYSCALE": grayscale,
     "SEPIA": sepia,
@@ -423,13 +424,21 @@ def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image | None:
     """
 
     for filter_name, filter_params in kwargs.items():
-        filter_to_apply = AVAILABLE_FILTERS.get(filter_name.upper())
+        filter_to_apply: TransformFunc | None = AVAILABLE_FILTERS.get(
+            filter_name.upper()
+        )
         if filter_to_apply:
             logger.info(f"Applying filter: {filter_name}")
-            image = filter_to_apply(image)
+            filtered_image = filter_to_apply(image)
+            if not filtered_image:
+                logger.error(f"Failed to apply filter: {filter_name}.")
+                raise TransformationFailed(
+                    detail=f"Failed to apply filter: {filter_name}."
+                )
+            image = filtered_image
         else:
-            logger.warning(f"Invalid filter name: {filter_name}. No filter applied.")
-            raise ValueError(f"Invalid filter name: {filter_name}")
+            logger.error(f"Invalid filter name: {filter_name}. No filter applied.")
+            raise InvalidTransformation(f"Invalid filter name: {filter_name}")
 
     return image
 

@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 import sys
-import tempfile
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict
@@ -136,10 +135,7 @@ if "test" in sys.argv:
     STORAGES.update(
         {
             "default": {
-                "BACKEND": "django.core.files.storage.FileSystemStorage",
-                "OPTIONS": {
-                    "location": tempfile.mkdtemp(prefix="django_test_"),
-                },
+                "BACKEND": "django.core.files.storage.InMemoryStorage",
             },
             "staticfiles": {
                 "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",

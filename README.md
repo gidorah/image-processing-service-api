@@ -27,17 +27,20 @@ image-processing-service-api/   # Project root directory
 ├── image_processing_service/   # Django project settings directory (settings.py, urls.py, etc.)
 ├── image_processor/            # Django app for image processing logic (tasks, models, etc.)
 ├── logs/                       # Log files directory (mounted in Docker)
-├── posting-collection/         # (Optional) Postman collection or similar API testing files
+├── posting-collection/         # Postman collection for API testing
+├── tests/                      # Test suite directory
 ├── utils/                      # Shared utility functions and custom exceptions
-├── .dockerignore               # Specifies files/directories Docker should ignore
-├── .env.example                # Example environment variables file
-├── .gitignore                  # Files and directories to ignore in Git
-├── docker-compose.local.yml    # Docker Compose file for local development
-├── justfile                    # Just command runner configuration
-├── LICENSE                     # Project license file (MIT)
-├── manage.py                   # Django management script
-├── README.md                   # This file
-└── requirements.txt            # Project dependencies
+├── .dockerignore              # Specifies files/directories Docker should ignore
+├── .env.example               # Example environment variables file
+├── .gitignore                 # Files and directories to ignore in Git
+├── docker-compose.local.yml   # Docker Compose file for local development
+├── justfile                   # Just command runner configuration
+├── LICENSE                    # Project license file (MIT)
+├── manage.py                  # Django management script
+├── mypy.ini                   # MyPy configuration for type checking
+├── README.md                  # This file
+├── requirements.txt           # Project dependencies
+└── ruff.toml                  # Ruff configuration for linting
 ```
 
 *   **`api/`:** Handles API requests/responses, authentication, serialization, and API-specific models.
@@ -45,6 +48,7 @@ image-processing-service-api/   # Project root directory
 *   **`elk/`:** Contains configuration files for the ELK stack used for logging.
 *   **`image_processing_service/`:** Contains the main Django project settings, URL configurations, and ASGI/WSGI entry points.
 *   **`image_processor/`:** Contains the core image processing logic, including Celery tasks and related models.
+*   **`tests/`:** Contains the test suite for the project.
 *   **`utils/`:** Contains shared helper functions and custom exception classes used across the project.
 
 ## Features
@@ -80,22 +84,28 @@ image-processing-service-api/   # Project root directory
     * Provides appropriate HTTP status and error responses.
 * **Logging:**
     * Uses the ELK stack (Elasticsearch, Kibana, Filebeat) via Docker for centralized logging.
+* **Code Quality:**
+    * Uses Ruff for fast Python linting
+    * Uses MyPy for static type checking
+    * Includes comprehensive test suite
 
 ## Technologies Used
 
-*   **Python:** Programming language.
-*   **Django:** Web framework.
-*   **Django REST Framework (DRF):**  Toolkit for building Web APIs.
-*   **Celery:** Distributed task queue for asynchronous processing.
-*   **Pillow:** Image processing library.
-*   **PostgreSQL:** Database.
-*   **Amazon S3:** Object storage for images.
-*   **Redis:** In-memory data store (for caching and Celery broker/backend).
-*   **JWT:** JSON web token for authentication.
-*   **Sentry:** For error tracking.
-*   **ELK Stack (Elasticsearch, Kibana, Filebeat):** For centralized logging and monitoring.
-*   **Docker & Docker Compose:** For containerization and local development environment setup.
-*   **Just:** Command runner for simplifying common development tasks (like Docker management).
+*   **Python:** Programming language
+*   **Django:** 5.1.7 - Web framework
+*   **Django REST Framework (DRF):** 3.16.0 - Toolkit for building Web APIs
+*   **Celery:** 5.4.0 - Distributed task queue for asynchronous processing
+*   **Pillow:** 11.1.0 - Image processing library
+*   **PostgreSQL:** Database (via psycopg2-binary 2.9.10)
+*   **Amazon S3:** Object storage for images (via django-storages[s3] 1.14.5)
+*   **Redis:** 5.2.1 - In-memory data store (for caching and Celery broker/backend)
+*   **JWT:** JSON web token for authentication (via djangorestframework-simplejwt 5.5.0)
+*   **Sentry:** 2.25.0 - For error tracking
+*   **ELK Stack:** For centralized logging and monitoring
+*   **Docker & Docker Compose:** For containerization and local development environment setup
+*   **Just:** Command runner for simplifying common development tasks
+*   **Ruff:** Fast Python linter
+*   **MyPy:** Static type checker for Python
 
 ## Setup (Local Development with Docker)
 
@@ -199,6 +209,84 @@ LOG_FILE_PATH=/var/log/django/django.log
 # Debugging (Optional - Port used by docker-compose.local.yml)
 # REMOTE_DEBUGGING_PORT=5678
 ```
+
+## Testing
+
+The project includes a comprehensive test suite organized into different types of tests:
+
+### Test Structure
+
+```
+tests/
+├── e2e/              # End-to-end tests for complete user flows
+├── integration/      # Integration tests for API endpoints
+├── performance/      # Performance and load testing
+└── unit/            # Unit tests for individual components
+    ├── models/      # Tests for database models
+    ├── utils/       # Tests for utility functions
+    └── image_processor/  # Tests for image processing functions
+```
+
+### Test Types
+
+1. **Unit Tests**
+   - Model tests for database operations and validations
+   - Image processing function tests (resize, crop, rotate, etc.)
+   - Utility function tests
+   - Uses Django's `TestCase` class with proper test isolation
+
+2. **Integration Tests**
+   - API endpoint tests
+   - Authentication flow tests
+   - File upload and processing tests
+   - Uses Django REST Framework's `APITestCase`
+
+3. **End-to-End Tests**
+   - Complete user flow tests
+   - Full transformation pipeline tests
+   - Authentication and authorization tests
+
+4. **Performance Tests**
+   - Response time tests
+   - Load testing scenarios
+   - Cache effectiveness tests
+
+### Running Tests
+
+You can run the tests using Django's test runner:
+
+```bash
+# Run all tests
+python manage.py test
+
+# Run specific test types
+python manage.py test tests.unit
+python manage.py test tests.integration
+python manage.py test tests.e2e
+python manage.py test tests.performance
+
+# Run specific test cases
+python manage.py test tests.unit.models.tests.SourceImageModelTest
+```
+
+### Test Features
+
+- **Test Isolation**: Each test runs in isolation with a fresh database
+- **Temporary Media Files**: Tests use temporary directories for file operations
+- **Mock External Services**: External services (S3, Redis) are mocked in tests
+- **Test Data Factories**: Helper functions to create test data
+- **Cache Overrides**: Cache settings are overridden for consistent test behavior
+- **Authentication Helpers**: Utilities for testing authenticated endpoints
+
+### Test Coverage
+
+The test suite aims to cover:
+- All API endpoints
+- All image transformation operations
+- Database models and relationships
+- Authentication and authorization flows
+- Error handling and edge cases
+- Performance-critical operations
 
 ## API Documentation
 

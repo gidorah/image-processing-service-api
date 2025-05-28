@@ -1,14 +1,13 @@
 import io
 import logging
-import math
+from collections.abc import Callable
 
-from celery import shared_task
+from celery import shared_task  # type: ignore
 from django.core.files import File
 from django.db.models.fields.files import ImageFieldFile
 
 # Add ImageOps, ImageFilter, ImageDraw, ImageFont
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
-from PIL.ImageFile import ImageFile
 
 from api.exceptions import (
     InvalidTransformation,
@@ -26,6 +25,10 @@ from utils.utils import (
 
 logger = logging.getLogger(__name__)
 
+# Defining Callable type for transformation functions
+# to catch potential type errors
+TransformFunc = Callable[..., Image.Image | None]
+
 
 def _get_task_and_set_in_progress(task_id) -> TransformationTask:
     """
@@ -41,6 +44,9 @@ def _get_task_and_set_in_progress(task_id) -> TransformationTask:
 
     if not task.transformations:
         logger.error(f"No transformations were defined for task: {task_id}.")
+        task.status = TaskStatus.FAILED
+        task.error_message = "No transformations were defined for task."
+        task.save()
         raise NoTransformationsDefined()
 
     # Since task and transformations are valid, set status to IN_PROGRESS
@@ -73,6 +79,13 @@ def _load_image_and_determine_format(
         logger.info(
             f"Format not found for task: {task.id}. Trying to get from metadata."
         )
+
+        if source_image_instance.metadata is None:
+            logger.error(f"Metadata not found for task: {task.id}. Format not found.")
+            raise OriginalImageNotFound(
+                detail=f"Metadata not found for task: {task.id}. Format not found."
+            )
+
         image_format = source_image_instance.metadata.get("format")
 
         # If format is still None, would fail later
@@ -90,13 +103,21 @@ def _load_image_and_determine_format(
 
 
 def _apply_processing_steps(
-    processed_image: Image.Image, task: TransformationTask, image_format: str
-) -> Image.Image:
+    processed_image: Image.Image | None,
+    task: TransformationTask,
+    image_format: str,
+) -> Image.Image | None:
     """
     Applies transformations and final color mode conversion.
     """
 
     logger.info(f"Applying transformations for task: {task.id}.")
+
+    if not task.transformations:
+        logger.error(f"No transformations were applied for task: {task.id}.")
+        raise NoTransformationsDefined(
+            detail=f"No transformations were applied for task: {task.id}."
+        )
 
     for transformation in task.transformations:
         operation = transformation.get("operation")
@@ -108,19 +129,29 @@ def _apply_processing_steps(
                 f"Invalid operation: {operation} for task: {task.id}."
             )
 
-        transform_func = TRANSFORMATION_MAP[operation]
+        transform_func: TransformFunc = TRANSFORMATION_MAP[operation]
 
         logger.info(f"Applying transformation {operation} with params {params}")
-        processed_image = transform_func(processed_image, **params)
 
-        if not processed_image:
-            logger.error(f"Transformation failed for task: {task.id}.")
+        try:
+            processed_image = transform_func(processed_image, **params)
+            if not processed_image:
+                logger.error(f"Transformation failed for task: {task.id}.")
+                raise TransformationFailed(
+                    detail=f"Transformation failed for task: {task.id}."
+                )
+        except Exception as e:
+            logger.error(
+                f"Error applying transformation {operation} for task: {task.id}: {e}",
+                exc_info=True,
+            )
             raise TransformationFailed(
-                detail=f"Transformation failed for task: {task.id}."
+                detail=f"Error applying transformation {operation} "
+                f"for task: {task.id}: {e}"
             )
 
     # Ensure RGB mode if image is RGBA
-    if processed_image.mode == "RGBA":
+    if processed_image and processed_image.mode == "RGBA":
         # This conversion can fail, handled this in the main except block.
         processed_image = processed_image.convert("RGB")
         if not processed_image:
@@ -159,7 +190,7 @@ def _save_result_image(
         # Create Django File
         transformed_image_file = File(image_buffer, name=file_name)
 
-        # Create TransformedImage record (original lines 92-101)
+        # Create TransformedImage record
         result_image = TransformedImage.objects.create(
             owner=task.owner,
             file=transformed_image_file,
@@ -205,7 +236,8 @@ def apply_transformations(task_id):
         # If cached image ID is found, set it to task and don't apply transformations
         if cached_image_id:
             logger.info(
-                f"Transformed image found in cache for task: {task.id}. Won't apply transformations."
+                f"Transformed image found in cache for task: {task.id}. "
+                "Won't apply transformations."
             )
             task.result_image_id = cached_image_id
             task.status = TaskStatus.SUCCESS
@@ -248,31 +280,35 @@ def apply_transformations(task_id):
         raise e
 
 
-def crop(image: Image.Image, x, y, width, height) -> Image.Image:
+def crop(image: Image.Image, x, y, width, height) -> Image.Image | None:
     """
     Crop an image.
     """
+    if x + width > image.width or y + height > image.height:
+        raise ValueError("Invalid dimensions for cropping.")
+
     box = (x, y, x + width, y + height)
     return image.crop(box)
 
 
-def resize(image: Image.Image, width, height) -> Image.Image:
+def resize(image: Image.Image, width, height) -> Image.Image | None:
     """
     Resize an image.
     """
     return image.resize((width, height))
 
 
-def rotate(image: Image.Image, degrees) -> Image.Image:
+def rotate(image: Image.Image, degrees) -> Image.Image | None:
     """
     Rotate an image.
     """
     return image.rotate(angle=degrees)
 
 
-def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
+def watermark(image: Image.Image, watermark_text: str) -> Image.Image | None:
     """
-    Applies a standard, semi-transparent, diagonal watermark text across the image center.
+    Applies a standard, semi-transparent, diagonal watermark text
+    across the image center.
 
     Args:
         image: The base image to watermark.
@@ -281,6 +317,9 @@ def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     Returns:
         The watermarked image.
     """
+
+    if not watermark_text:
+        raise ValueError("Watermark text cannot be empty.")
 
     # make a blank image for the text, initialized to transparent text color
     watermark_image: Image.Image = Image.new("RGBA", image.size, (255, 255, 255, 0))
@@ -297,33 +336,31 @@ def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     # rotate text 45 degrees
     watermark_image = watermark_image.rotate(45)
 
-    result_image = Image.alpha_composite(image, watermark_image)
-
-    return result_image
+    return Image.alpha_composite(image, watermark_image)
 
 
-def flip(image: Image.Image) -> Image.Image:
+def flip(image: Image.Image) -> Image.Image | None:
     """
     Flip an image vertically (top to bottom).
     """
     return ImageOps.flip(image)
 
 
-def mirror(image: Image.Image) -> Image.Image:
+def mirror(image: Image.Image) -> Image.Image | None:
     """
     Mirror an image horizontally (left to right).
     """
     return ImageOps.mirror(image)
 
 
-def grayscale(image: Image.Image) -> Image.Image:
+def grayscale(image: Image.Image) -> Image.Image | None:
     """
     Convert an image to grayscale.
     """
     return image.convert("L")
 
 
-def sepia(image: Image.Image) -> Image.Image:
+def sepia(image: Image.Image) -> Image.Image | None:
     """
     Apply a sepia filter to an image using a standard conversion matrix.
     Ensures the image is in RGB mode before applying the filter.
@@ -354,15 +391,15 @@ def sepia(image: Image.Image) -> Image.Image:
     return image.convert("RGB", sepia_matrix)
 
 
-def blur(image: Image.Image) -> Image.Image:
+def blur(image: Image.Image) -> Image.Image | None:
     """
     Apply a blur filter to an image.
     """
-    return image.filter(ImageFilter.BLUR)
+    return image.filter(ImageFilter.GaussianBlur)
 
 
 # Define available filters from ImageFilter
-AVAILABLE_FILTERS = {
+AVAILABLE_FILTERS: dict[str, TransformFunc] = {
     "BLUR": blur,
     "GRAYSCALE": grayscale,
     "SEPIA": sepia,
@@ -371,7 +408,7 @@ AVAILABLE_FILTERS = {
 }
 
 
-def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image:
+def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image | None:
     """
     Apply a predefined filter to an image.
 
@@ -385,13 +422,21 @@ def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image:
     """
 
     for filter_name, filter_params in kwargs.items():
-        filter_to_apply = AVAILABLE_FILTERS.get(filter_name.upper())
+        filter_to_apply: TransformFunc | None = AVAILABLE_FILTERS.get(
+            filter_name.upper()
+        )
         if filter_to_apply:
             logger.info(f"Applying filter: {filter_name}")
-            image = filter_to_apply(image)
+            filtered_image = filter_to_apply(image)
+            if not filtered_image:
+                logger.error(f"Failed to apply filter: {filter_name}.")
+                raise TransformationFailed(
+                    detail=f"Failed to apply filter: {filter_name}."
+                )
+            image = filtered_image
         else:
-            logger.warning(f"Invalid filter name: {filter_name}. No filter applied.")
-            raise ValueError(f"Invalid filter name: {filter_name}")
+            logger.error(f"Invalid filter name: {filter_name}. No filter applied.")
+            raise InvalidTransformation(f"Invalid filter name: {filter_name}")
 
     return image
 
@@ -404,7 +449,7 @@ This dictionary won't include the "change_format" transformation
 because it's not a transformation function. And format change
 is done in the apply_transformations function.
 """
-TRANSFORMATION_MAP = {
+TRANSFORMATION_MAP: dict[str, TransformFunc] = {
     "crop": crop,
     "resize": resize,
     "rotate": rotate,

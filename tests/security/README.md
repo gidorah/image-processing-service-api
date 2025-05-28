@@ -23,7 +23,6 @@ tests/security/
 ├── test_permissions.py      # Permission and access control tests
 ├── test_input_validation.py # Input validation and sanitization tests
 ├── test_file_uploads.py     # File upload security tests
-├── test_runner.py           # Test runner and documentation
 └── README.md               # This file
 ```
 

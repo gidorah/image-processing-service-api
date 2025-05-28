@@ -140,6 +140,12 @@ class UploadImageSerializer(serializers.ModelSerializer):
         Sanitize the filename to prevent security issues.
         """
         if value:
+            # Check for double extensions
+            if value.count(".") > 1:
+                raise serializers.ValidationError(
+                    "Double extensions are not allowed in filenames", code="invalid"
+                )
+
             return sanitize_filename(value)
         return value
 

@@ -6,12 +6,10 @@ for asynchronous task execution, particularly for image processing tasks.
 Uses CELERY_TASK_ALWAYS_EAGER for synchronous testing.
 """
 
-import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
-from PIL import Image
 
 from api.models import SourceImage, TaskStatus, TransformationTask, TransformedImage
 from image_processor.tasks import apply_transformations
@@ -19,12 +17,11 @@ from tests.utils import create_test_image_file
 
 User = get_user_model()
 
-# Test settings for Celery integration
 CELERY_TEST_SETTINGS = {
-    "CELERY_TASK_ALWAYS_EAGER": True,  # Execute tasks synchronously for testing
-    "CELERY_TASK_EAGER_PROPAGATES": False,  # Don't propagate exceptions in eager mode for easier testing
-    "CELERY_BROKER_URL": "memory://",  # Use in-memory broker for tests
-    "CELERY_RESULT_BACKEND": "cache+memory://",  # Use in-memory result backend
+    "CELERY_TASK_ALWAYS_EAGER": True,
+    "CELERY_TASK_EAGER_PROPAGATES": False,
+    "CELERY_BROKER_URL": "memory://",
+    "CELERY_RESULT_BACKEND": "cache+memory://",
     "CACHES": {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -249,11 +246,8 @@ class CeleryTaskIntegrationTests(TestCase):
         # Refresh the task from database
         transformation_task.refresh_from_db()
 
-        # Verify task status is FAILED (or still PENDING if exception occurred before status update)
-        # The important thing is that the Celery task failed, which we verified above
-        self.assertIn(
-            transformation_task.status, [TaskStatus.FAILED, TaskStatus.PENDING]
-        )
+        # Verify task status is FAILED
+        self.assertEqual(transformation_task.status, TaskStatus.FAILED)
 
     def test_apply_transformations_invalid_parameters(self):
         """
@@ -441,21 +435,12 @@ class CeleryConfigurationTests(TestCase):
     Test suite for Celery configuration and setup.
     """
 
-    def test_celery_task_always_eager_setting(self):
-        """
-        Test that CELERY_TASK_ALWAYS_EAGER is properly configured for tests.
-        """
-        from django.conf import settings
-
-        self.assertTrue(settings.CELERY_TASK_ALWAYS_EAGER)
-
     def test_celery_app_configuration(self):
         """
         Test that Celery app is properly configured.
         """
         from image_processing_service.celery import app
 
-        # Verify app is configured
         self.assertIsNotNone(app)
         self.assertEqual(app.main, "image_processing_service")
 

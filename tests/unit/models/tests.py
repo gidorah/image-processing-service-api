@@ -398,8 +398,32 @@ class TransformationTaskModelTest(TestCase):
 
         # Create a transformed image for the task
         transformed_image = TransformedImage.objects.create(
-            format="PNG",
-            transformations=[
-                {"operation": "resize", "params": {"width": 100, "height": 100}}
-            ],
+            owner=self.user,
+            file=create_test_image(file_name="transformed.png", format="PNG"),
+            file_name="transformed_" + TEST_FILE_NAME,
+            description="Transformed " + TEST_DESCRIPTION,
+            metadata={"task_id": task_id},
+            transformation_task=self.transformation_task,
+            source_image=self.source_image,
         )
+
+        # Set the result image for the task
+        self.transformation_task.result_image = transformed_image
+        self.transformation_task.save()
+
+        # Verify the result image is set
+        self.assertTrue(
+            TransformedImage.objects.filter(id=transformed_image.id).exists()
+        )
+
+        # Delete the transformed image
+        TransformedImage.objects.get(
+            id=self.transformation_task.result_image.id
+        ).delete()
+
+        # Refresh the transformation task
+        self.transformation_task.refresh_from_db()
+
+        # Verify the result image set to null but the transformation task is not deleted
+        self.assertTrue(TransformationTask.objects.filter(id=task_id).exists())
+        self.assertFalse(expr=self.transformation_task.result_image)

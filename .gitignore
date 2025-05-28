@@ -53,3 +53,10 @@ posting-collection/
 
  # Cursor rules
 .cursor/
+
+# Local test files
+images/
+tests/test_files/
+
+# Copilot instructions
+.github/copilot-instructions.md

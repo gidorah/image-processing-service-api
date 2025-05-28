@@ -11,9 +11,12 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import Any, Dict
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,12 +29,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+# Note: In a production environment, you should set this in an environment variabl
+if "test" in sys.argv:
+    SECRET_KEY = "dummy_secret_key_for_testing"
+else:
+    SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dummy_secret_key_for_development")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS: list = []
 
 
 # Application definition
@@ -46,6 +53,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_celery_results",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "api",
     "image_processor",
     "storages",
@@ -97,54 +105,71 @@ WSGI_APPLICATION = "image_processing_service.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "postgres"),
-        "USER": os.environ.get("DB_USER", "postgres"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "password"),
-        "HOST": os.environ.get("DB_HOST", "db"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
     }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "postgres"),
+            "USER": os.environ.get("DB_USER", "postgres"),
+            "PASSWORD": os.environ.get("DB_PASSWORD", "password"),
+            "HOST": os.environ.get("DB_HOST", "db"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    }
+
+# Base configuration
+STORAGES: Dict[str, Dict[str, Any]] = {
+    "default": {"BACKEND": ""},
+    "staticfiles": {"BACKEND": ""},
 }
 
-# AWS S3 settings
-AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME")
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+if "test" in sys.argv:
+    DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+    STORAGES.update(
+        {
+            "default": {
+                "BACKEND": "django.core.files.storage.InMemoryStorage",
+            },
+            "staticfiles": {
+                "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            },
+        }
+    )
+else:
+    # AWS configuration
+    aws_config = {
+        "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
+        "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
+        "region_name": os.environ.get("AWS_S3_REGION_NAME"),
+    }
 
-# Optional: Set object parameters (e.g., caching)
-AWS_S3_OBJECT_PARAMETERS = {
-    "CacheControl": "max-age=86400",  # Cache for 1 day (adjust as needed)
-}
+    missing = [key for key, val in aws_config.items() if not val]
+    if missing:
+        raise ImproperlyConfigured(
+            f"Missing AWS credential(s) for S3 storage: {', '.join(missing)}"
+        )
 
-# Optional: Prevent accidental public access (recommended)
-AWS_DEFAULT_ACL = None
+    STORAGES.update(
+        {
+            "default": {
+                "BACKEND": "storages.backends.s3.S3Storage",
+                "OPTIONS": aws_config,
+            },
+            "staticfiles": {
+                "BACKEND": "storages.backends.s3.S3Storage",
+                "OPTIONS": {**aws_config, "location": "static"},
+            },
+        }
+    )
 
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-            "access_key": AWS_ACCESS_KEY_ID,
-            "secret_key": AWS_SECRET_ACCESS_KEY,
-            "bucket_name": AWS_STORAGE_BUCKET_NAME,
-            "region_name": AWS_S3_REGION_NAME,
-        },
-    },
-    "staticfiles": {  # for collectstatic, serving the static files
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-            "access_key": AWS_ACCESS_KEY_ID,
-            "secret_key": AWS_SECRET_ACCESS_KEY,
-            "bucket_name": AWS_STORAGE_BUCKET_NAME,
-            "region_name": AWS_S3_REGION_NAME,
-            "location": "static",  # Recommended to separate from media files
-        },
-    },
-}
 
 CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", "redis://localhost:6379/1")
 
@@ -157,7 +182,8 @@ CACHES = {
         ),  # 2 hours | This value should not exceed expired image cleanup time
         # "OPTIONS": {
         #     "MAX_ENTRIES": 1000,
-        #     "CULL_FREQUENCY": 10,  # 10% of the cache will be cleared when it reaches the limit
+        #     "CULL_FREQUENCY": 10,  # 10% of the cache will be cleared
+        # when it reaches the limit
         # },
     }
 }
@@ -192,7 +218,8 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
-    "SIGNING_KEY": os.environ.get("DJANGO_SECRET_KEY"),
+    # Use the same key Django uses so that tokens work in all environments
+    "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
     # ... other settings you want to customize
 }
@@ -229,7 +256,7 @@ if DEBUG and REMOTE_DEBUGGING_PORT:
     print("Starting debugpy with port", DEBUG_PORT)
 
     try:
-        import debugpy
+        import debugpy  # type: ignore
 
         debugpy.listen(("0.0.0.0", DEBUG_PORT))
         print(f"Debugger is listening on port {DEBUG_PORT}")
@@ -237,8 +264,15 @@ if DEBUG and REMOTE_DEBUGGING_PORT:
         print(f"debugpy not available: {e}")
 
 # Celery settings
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = "django_celery_results.backends.database:DatabaseBackend"
+if "test" in sys.argv:
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = "memory://"  # In-memory broker for tests
+    CELERY_RESULT_BACKEND = "django-db"  # Use django-db backend for tests
+else:
+    CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND = "django_celery_results.backends.database:DatabaseBackend"
+
 
 # Celery beat settings
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
@@ -262,7 +296,8 @@ if SENTRY_DSN:
             "continuous_profiling_auto_start": True,
         },
         # Add data like request headers and IP for users, if applicable;
-        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/
+        # for more info
         send_default_pii=True,
     )
 
@@ -317,5 +352,8 @@ LOGGING = {
 
 # Validation settings
 
-IMAGE_MAX_PIXEL_SIZE = os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096)
-IMAGE_MIN_PIXEL_SIZE = os.getenv("IMAGE_MIN_PIXEL_SIZE", 100)
+IMAGE_MAX_PIXEL_SIZE = int(os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096))
+IMAGE_MIN_PIXEL_SIZE = int(os.getenv("IMAGE_MIN_PIXEL_SIZE", 100))
+IMAGE_MAX_FILE_SIZE_IN_BYTES = int(
+    os.getenv("IMAGE_MAX_FILE_SIZE_IN_BYTES", 10 * 1024 * 1024)
+)

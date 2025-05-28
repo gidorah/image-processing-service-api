@@ -80,7 +80,7 @@ def _load_image_and_determine_format(
         if source_image_instance.metadata is None:
             logger.error(f"Metadata not found for task: {task.id}. Format not found.")
             raise OriginalImageNotFound(
-                detail="Metadata not found for task: {task_id}. Format not found."
+                detail=f"Metadata not found for task: {task.id}. Format not found."
             )
 
         image_format = source_image_instance.metadata.get("format")

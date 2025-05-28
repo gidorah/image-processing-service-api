@@ -8,7 +8,13 @@ from PIL import Image
 from rest_framework import serializers
 from rest_framework.exceptions import NotFound
 
+from api.exceptions import FileSizeExceededError
 from api.models import SourceImage, TransformationTask, TransformedImage
+from utils.security import (
+    sanitize_metadata,
+    sanitize_string_input,
+    sanitize_transformations,
+)
 from utils.utils import extract_metadata
 
 User = get_user_model()
@@ -128,54 +134,109 @@ class UploadImageSerializer(serializers.ModelSerializer):
             "description": {"required": True},
         }
 
+    def validate_file_name(self, value):
+        """
+        Sanitize the filename to prevent security issues.
+        """
+        if value:
+            # Check for double extensions
+            if value.count(".") > 1:
+                raise serializers.ValidationError(
+                    "Double extensions are not allowed in filenames", code="invalid"
+                )
+
+            return sanitize_string_input(value)
+        return value
+
+    def validate_description(self, value):
+        """
+        Escape HTML content in description to prevent XSS.
+        """
+        return sanitize_string_input(value)
+
     def create(self, validated_data):
         # Extract and set metadata
-        validated_data["metadata"] = extract_metadata(
-            image=validated_data["file"].image
-        )
+
+        if not validated_data["file"].image:
+            raise serializers.ValidationError(
+                "File is not a valid image", code="invalid"
+            )
+
+        metadata = extract_metadata(image=validated_data["file"].image)
+        # Sanitize metadata to prevent XSS
+        validated_data["metadata"] = sanitize_metadata(metadata)
         return super().create(validated_data)
+
+    def _check_executable_signatures(self, value):
+        """Check for executable signatures in the file."""
+
+        # Check for executable signatures in the first few bytes
+        value.seek(0)
+        header = value.read(512)  # Read first 512 bytes
+        value.seek(0)
+
+        # Check for common executable signatures
+        executable_signatures = [
+            b"MZ",  # PE (Windows)
+            b"\x7fELF",  # ELF (Linux)
+            b"\xfe\xed\xfa\xce",  # Mach-O (macOS)
+            b"\xca\xfe\xba\xbe",  # Java class
+            b"#!/",  # Shebang scripts
+        ]
+
+        for sig in executable_signatures:
+            if header.startswith(sig):
+                raise serializers.ValidationError(
+                    "File contains executable signatures", code="invalid"
+                )
+
+        value.seek(0)
 
     def validate_file(self, value):
         """
         Validate the file type and size using PIL.
         """
-        try:
-            # Try opening with PIL to verify it's a valid image
-            with Image.open(value) as img:
-                if img.format and img.format.lower() not in ["jpeg", "png"]:
-                    raise serializers.ValidationError(
-                        "Invalid file type. Expected a JPEG or PNG file.",
-                        code="invalid",
-                    )
 
-                # Validate the image dimensions
-                if (
-                    img.width > settings.IMAGE_MAX_PIXEL_SIZE
-                    or img.height > settings.IMAGE_MAX_PIXEL_SIZE
-                ):
-                    raise serializers.ValidationError(
-                        (
-                            f"Invalid image pixel size. Maximum allowed is "
-                            f"{settings.IMAGE_MAX_PIXEL_SIZE} pixels per side."
-                        ),
-                        code="invalid",
-                    )
-                if (
-                    img.width < settings.IMAGE_MIN_PIXEL_SIZE
-                    or img.height < settings.IMAGE_MIN_PIXEL_SIZE
-                ):
-                    raise serializers.ValidationError(
-                        (
-                            f"Invalid image pixel size. Minimum required is "
-                            f"{settings.IMAGE_MIN_PIXEL_SIZE} pixels per side."
-                        ),
-                        code="invalid",
-                    )
-        except Exception:  # noqa: BLE001
-            raise serializers.ValidationError(
-                "Invalid or corrupted image file.",
-                code="invalid",
-            )
+        # First check for executable signatures for
+        # polyglot files that could be interpreted as images
+        # but are actually executable files
+        self._check_executable_signatures(value)
+
+        # Try opening with PIL to verify it's a valid image
+        with Image.open(value) as img:
+            if img.format and img.format.lower() not in ["jpeg", "png"]:
+                raise serializers.ValidationError(
+                    "Invalid file type. Expected a JPEG or PNG file.",
+                    code="invalid",
+                )
+
+            # Validate the image size
+            if value.size > settings.IMAGE_MAX_FILE_SIZE_IN_BYTES:
+                raise FileSizeExceededError()
+
+            # Validate the image dimensions
+            if (
+                img.width > settings.IMAGE_MAX_PIXEL_SIZE
+                or img.height > settings.IMAGE_MAX_PIXEL_SIZE
+            ):
+                raise serializers.ValidationError(
+                    (
+                        f"Invalid image pixel size. Maximum allowed is "
+                        f"{settings.IMAGE_MAX_PIXEL_SIZE} pixels per side."
+                    ),
+                    code="invalid",
+                )
+            if (
+                img.width < settings.IMAGE_MIN_PIXEL_SIZE
+                or img.height < settings.IMAGE_MIN_PIXEL_SIZE
+            ):
+                raise serializers.ValidationError(
+                    (
+                        f"Invalid image pixel size. Minimum required is "
+                        f"{settings.IMAGE_MIN_PIXEL_SIZE} pixels per side."
+                    ),
+                    code="invalid",
+                )
 
         # Reset file pointer for further processing
         value.seek(0)
@@ -255,6 +316,12 @@ class TransformationTaskSerializer(serializers.ModelSerializer):
             "updated_at",
             "error_message",
         )
+
+    def validate_transformations(self, value):
+        """
+        Sanitize transformations to prevent XSS and injection attacks.
+        """
+        return sanitize_transformations(value)
 
     def create(self, validated_data):
         """

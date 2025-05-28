@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import get_user_model
 from rest_framework import permissions
 
 User = get_user_model()
@@ -13,4 +13,5 @@ class IsOwner(permissions.BasePermission):
         """
         Return True if the user is the owner of the object.
         """
-        return obj.owner == request.user
+        is_user_owner: bool = obj.owner == request.user
+        return is_user_owner

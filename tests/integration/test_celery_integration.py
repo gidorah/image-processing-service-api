@@ -6,6 +6,7 @@ for asynchronous task execution, particularly for image processing tasks.
 Uses CELERY_TASK_ALWAYS_EAGER for synchronous testing.
 """
 
+import time
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model

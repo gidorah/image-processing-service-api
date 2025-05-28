@@ -9,6 +9,7 @@ Uses moto to mock AWS S3 service for reliable testing.
 import uuid
 
 import boto3
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
@@ -28,10 +29,10 @@ TEST_S3_SETTINGS = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
             "OPTIONS": {
-                "access_key": "testing",
-                "secret_key": "testing",
-                "bucket_name": "test-image-processing-bucket",
-                "region_name": "us-east-1",
+                "access_key": AWS_ACCESS_KEY_ID,
+                "secret_key": AWS_SECRET_ACCESS_KEY,
+                "bucket_name": AWS_STORAGE_BUCKET_NAME,
+                "region_name": AWS_S3_REGION_NAME,
             },
         }
     },
@@ -251,8 +252,8 @@ class S3StorageIntegrationTests(TestCase):
         """
         Test uploading a larger file to ensure S3 integration handles it properly.
         """
-        # Create a larger test file (1MB)
-        large_content = b"x" * (1024 * 1024)  # 1MB of 'x' characters
+        # Create a larger test file (10MB)
+        large_content = b"x" * settings.IMAGE_MAX_FILE_SIZE_IN_BYTES
         large_filename = f"large_file_{uuid.uuid4()}.bin"
         large_file_content = ContentFile(large_content, name=large_filename)
 

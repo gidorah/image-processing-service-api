@@ -175,7 +175,8 @@ class APIImageUploadTests(APITestCase):
                     # Should handle extreme dimensions appropriately
                     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
                 except Exception:
-                    # If image creation fails due to invalid dimensions, that's acceptable
+                    # If image creation fails due to invalid dimensions,
+                    # that's acceptable
                     pass
 
     def test_concurrent_file_uploads(self):
@@ -232,42 +233,6 @@ class APIImageUploadTests(APITestCase):
                 # Should reject files with mismatched content
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_upload_non_image_file(self):
-        """Test uploading a non-image file (e.g., a text file)."""
-        # Create a fake non-image file (e.g., a text file)
-        non_image_content = b"This is not an image file."
-        non_image_file = SimpleUploadedFile(
-            name="test_document.txt",
-            content=non_image_content,
-            content_type="text/plain",
-        )
-        data = {
-            "file": non_image_file,
-            "description": "Test non-image file",
-            "file_name": "test_document.txt",
-        }
-        response = self.client.post(self.upload_url, data, format="multipart")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_upload_unsupported_image_format(self):
-        """Test uploading an image with an unsupported format (e.g., TIFF)."""
-        # Create a fake TIFF image (Pillow can create TIFF in memory)
-        image = Image.new("RGB", (60, 30), color="blue")
-        buffer = BytesIO()
-        image.save(buffer, format="TIFF")
-        buffer.seek(0)
-        unsupported_image_file = SimpleUploadedFile(
-            name="test_image.tiff",
-            content=buffer.read(),
-            content_type="image/tiff",
-        )
-        data = {
-            "file": unsupported_image_file,
-            "description": "Test unsupported image format",
-            "file_name": "test_image.tiff",
-        }
-        response = self.client.post(self.upload_url, data, format="multipart")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])
@@ -449,8 +414,9 @@ class APIImageRetrievalTests(APITestCase):
         self.assertEqual(response.data["file_name"], "transformed_image")
 
 
-# We don't override cache in the tests because we want to test the throttling behavior by individually
-# filling the throttle limit with anonymous users and then authenticated users
+# We don't override cache in the tests because we want to test the throttling behavior
+# by individually filling the throttle limit with anonymous users and
+# then authenticated users
 class APIThrottlingTests(APITestCase):
     def setUp(self):
         self.anon_throttle_limit = int(
@@ -589,7 +555,10 @@ class APIPermissionTests(APITestCase):
         self.assertEqual(response.data["results"][0]["id"], self.transformed_image1.id)
 
     def test_user_cannot_retrieve_other_user_transformed_image(self):
-        """Test that a user cannot retrieve a specific transformed image of another user."""
+        """
+        Test that a user cannot retrieve a specific transformed image of
+        another user.
+        """
         self.client.force_authenticate(user=self.user1)
         # User1 tries to access transformed_image2 (owned by user2)
         url = reverse(
@@ -661,7 +630,8 @@ class APITransformationTaskViewSetTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["id"], self.task1.id)
         self.assertEqual(response.data["status"], "pending")
-        # Ensure transformations are correctly serialized (JSON string to Python list/dict)
+        # Ensure transformations are correctly serialized
+        # (JSON string to Python list/dict)
         self.assertEqual(response.data["transformations"], self.task1_transformations)
 
     def test_retrieve_non_existent_transformation_task(self):

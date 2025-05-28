@@ -6,7 +6,6 @@ for asynchronous task execution, particularly for image processing tasks.
 Uses CELERY_TASK_ALWAYS_EAGER for synchronous testing.
 """
 
-import time
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -283,7 +282,8 @@ class CeleryTaskIntegrationTests(TestCase):
 
     def test_task_status_progression(self):
         """
-        Test that task status progresses correctly from PENDING to IN_PROGRESS to SUCCESS.
+        Test that task status progresses correctly from
+        PENDING to IN_PROGRESS to SUCCESS.
         """
         transformation_task = TransformationTask.objects.create(
             original_image=self.source_image,
@@ -461,7 +461,7 @@ class CeleryConfigurationTests(TestCase):
         """
         # This test verifies that the task routing mechanism works
         # by attempting to get task info
-        from celery import current_app
+        from celery import current_app  # noqa: F401
 
         task_name = "image_processor.tasks.apply_transformations"
         task = current_app.tasks.get(task_name)

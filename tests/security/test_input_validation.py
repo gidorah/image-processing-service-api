@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from tests.security.base import SecurityTestBase
+from tests.utils import create_test_image_file
 
 
 class InputValidationTest(SecurityTestBase):
@@ -27,7 +28,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in sql_injection_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test_sql.jpg")
+                image_file = create_test_image_file("test_sql.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -76,7 +77,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in xss_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test_xss.jpg")
+                image_file = create_test_image_file("test_xss.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -125,7 +126,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in path_traversal_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -169,7 +170,7 @@ class InputValidationTest(SecurityTestBase):
 
         for field, value in long_inputs.items():
             with self.subTest(field=field, length=len(value)):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 data = {
                     "file": image_file,
@@ -206,7 +207,7 @@ class InputValidationTest(SecurityTestBase):
 
         for input_value in null_byte_inputs:
             with self.subTest(input_value=repr(input_value)):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -246,7 +247,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in unicode_payloads:
             with self.subTest(payload=repr(payload)):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -285,7 +286,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in json_injection_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -325,7 +326,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in html_injection_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -367,7 +368,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in command_injection_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -408,7 +409,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in ldap_injection_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -492,7 +493,7 @@ class InputValidationTest(SecurityTestBase):
 
         for payload in format_string_payloads:
             with self.subTest(payload=payload):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -530,7 +531,7 @@ class InputValidationTest(SecurityTestBase):
 
         for input_value in whitespace_inputs:
             with self.subTest(input_value=repr(input_value)):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),

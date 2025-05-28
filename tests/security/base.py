@@ -1,9 +1,8 @@
 import base64
-import os
 from datetime import datetime, timedelta
-from io import BytesIO
 
 import jwt
+import numpy as np
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -11,8 +10,9 @@ from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-import numpy as np
+
 from api.models import SourceImage
+from tests.utils import create_test_image_file
 
 User = get_user_model()
 
@@ -66,19 +66,6 @@ class SecurityTestBase(TestCase):
         """Clear authentication from the test client"""
         self.client.credentials()
 
-    def create_test_image_file(
-        self, filename="test.jpg", format="JPEG", size=(100, 100)
-    ):
-        """Create a test image file"""
-        image = Image.new("RGB", size, color="red")
-        image_io = BytesIO()
-        image.save(image_io, format=format)
-        image_io.seek(0)
-
-        return SimpleUploadedFile(
-            filename, image_io.getvalue(), content_type=f"image/{format.lower()}"
-        )
-
     def create_large_jpg(
         self, width=4096, height=4096, filename="large_image.jpg", quality=95
     ):
@@ -105,10 +92,9 @@ class SecurityTestBase(TestCase):
             filename, quality=quality, subsampling=0
         )  # subsampling=0 for highest quality
 
-
     def create_test_source_image(self, owner, filename="test.jpg") -> SourceImage:
         """Create a test source image for a user"""
-        image_file = self.create_test_image_file(filename)
+        image_file = create_test_image_file(filename)
 
         return SourceImage.objects.create(
             file=image_file,

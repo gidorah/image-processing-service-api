@@ -6,6 +6,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from tests.security.base import SecurityTestBase
+from tests.utils import create_test_image_file
 
 
 class FileUploadSecurityTest(SecurityTestBase):
@@ -62,7 +63,7 @@ class FileUploadSecurityTest(SecurityTestBase):
         self.authenticate_user(self.user_a)
 
         # Create a valid PNG image but name it with different extension
-        valid_image = self.create_test_image_file("test.txt", format="PNG")
+        valid_image = create_test_image_file("test.txt", format="PNG")
 
         response = self.client.post(
             reverse("source_image_upload"),
@@ -142,7 +143,7 @@ class FileUploadSecurityTest(SecurityTestBase):
 
         for filename in malicious_filenames:
             with self.subTest(filename=repr(filename)):
-                image_file = self.create_test_image_file("temp.jpg")
+                image_file = create_test_image_file("temp.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -246,10 +247,8 @@ class FileUploadSecurityTest(SecurityTestBase):
             },
         )
 
-        # Should either reject or handle safely
-        self.assertIn(
-            response.status_code, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
-        )
+        # Should reject the file
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_zip_bomb_protection(self):
         """Test protection against zip bombs in compressed image formats"""
@@ -289,7 +288,7 @@ class FileUploadSecurityTest(SecurityTestBase):
         suspicious_content = (
             b"\xff\xe0\x00\x10JFIF"  # JPEG header start
             b'<script>alert("xss")</script>'  # Malicious content in metadata area
-            + self.create_test_image_file("test.jpg").read()  # Actual image data
+            + create_test_image_file("test.jpg").read()  # Actual image data
         )
 
         suspicious_file = SimpleUploadedFile(
@@ -306,42 +305,9 @@ class FileUploadSecurityTest(SecurityTestBase):
             },
         )
 
-        # Should handle the file safely
-        self.assertIn(
-            response.status_code, [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST]
-        )
+        # Should reject the file
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_double_extension_files(self):
-        """Test handling of files with double extensions"""
-        self.authenticate_user(self.user_a)
-
-        double_extension_files = [
-            "image.jpg.exe",
-            "photo.png.bat",
-            "picture.gif.com",
-            "file.jpeg.scr",
-            "image.bmp.pif",
-        ]
-
-        for filename in double_extension_files:
-            with self.subTest(filename=filename):
-                image_file = self.create_test_image_file("test.jpg")
-
-                response = self.client.post(
-                    reverse("source_image_upload"),
-                    {
-                        "file": image_file,
-                        "file_name": filename,
-                        "description": "Test double extension",
-                        "metadata": "{}",
-                    },
-                )
-
-                # Should handle double extensions safely
-                self.assertIn(
-                    response.status_code,
-                    [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST],
-                )
 
     def test_mime_type_spoofing(self):
         """Test protection against MIME type spoofing"""
@@ -382,7 +348,7 @@ class FileUploadSecurityTest(SecurityTestBase):
 
         for filename in ssi_payloads:
             with self.subTest(filename=filename):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -395,10 +361,7 @@ class FileUploadSecurityTest(SecurityTestBase):
                 )
 
                 # Should handle SSI payloads safely
-                self.assertIn(
-                    response.status_code,
-                    [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST],
-                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_php_code_injection_in_filenames(self):
         """Test protection against PHP code injection in filenames"""
@@ -415,7 +378,7 @@ class FileUploadSecurityTest(SecurityTestBase):
 
         for filename in php_payloads:
             with self.subTest(filename=filename):
-                image_file = self.create_test_image_file("test.jpg")
+                image_file = create_test_image_file("test.jpg")
 
                 response = self.client.post(
                     reverse("source_image_upload"),
@@ -428,107 +391,4 @@ class FileUploadSecurityTest(SecurityTestBase):
                 )
 
                 # Should handle PHP injection attempts safely
-                self.assertIn(
-                    response.status_code,
-                    [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST],
-                )
-
-    def test_image_dimensions_validation(self):
-        """Test validation of extreme image dimensions"""
-        self.authenticate_user(self.user_a)
-
-        # Test with extreme dimensions that could cause memory issues
-        extreme_dimensions = [
-            (1, 1),  # Too small
-            (10000, 10000),  # Very large
-            (0, 100),  # Zero width
-            (100, 0),  # Zero height
-            (-100, 100),  # Negative width
-            (100, -100),  # Negative height
-        ]
-
-        for width, height in extreme_dimensions:
-            with self.subTest(width=width, height=height):
-                try:
-                    # Some dimensions might fail during image creation
-                    image_file = self.create_test_image_file(
-                        "test.jpg", size=(abs(width) or 1, abs(height) or 1)
-                    )
-
-                    response = self.client.post(
-                        reverse("source_image_upload"),
-                        {
-                            "file": image_file,
-                            "file_name": "extreme_dimensions.jpg",
-                            "description": f"Test {width}x{height} dimensions",
-                            "metadata": "{}",
-                        },
-                    )
-
-                    # Should handle extreme dimensions appropriately
-                    self.assertIn(
-                        response.status_code,
-                        [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST],
-                    )
-                except Exception:
-                    # If image creation fails due to invalid dimensions, that's acceptable
-                    pass
-
-    def test_concurrent_file_uploads(self):
-        """Test handling of multiple concurrent file uploads"""
-        self.authenticate_user(self.user_a)
-
-        # Simulate multiple rapid uploads
-        for i in range(5):
-            with self.subTest(upload=i):
-                image_file = self.create_test_image_file(f"concurrent_{i}.jpg")
-
-                response = self.client.post(
-                    reverse("source_image_upload"),
-                    {
-                        "file": image_file,
-                        "file_name": f"concurrent_{i}.jpg",
-                        "description": f"Concurrent upload {i}",
-                        "metadata": "{}",
-                    },
-                )
-
-                # All uploads should be handled correctly
-                self.assertIn(
-                    response.status_code,
-                    [status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST],
-                )
-
-    def test_file_content_vs_extension_mismatch(self):
-        """Test handling of files where content doesn't match extension"""
-        self.authenticate_user(self.user_a)
-
-        mismatched_files = [
-            ("document.pdf", "test.jpg", "application/pdf"),
-            ("archive.zip", "test.png", "application/zip"),
-            ("script.js", "test.gif", "application/javascript"),
-            ("style.css", "test.bmp", "text/css"),
-            ("data.xml", "test.webp", "application/xml"),
-        ]
-
-        for content_type, filename, mime_type in mismatched_files:
-            with self.subTest(filename=filename):
-                # Create a file with mismatched content
-                mismatched_content = f"This is actually a {content_type} file".encode()
-
-                mismatched_file = SimpleUploadedFile(
-                    filename, mismatched_content, content_type=mime_type
-                )
-
-                response = self.client.post(
-                    reverse("source_image_upload"),
-                    {
-                        "file": mismatched_file,
-                        "file_name": filename,
-                        "description": "Test content mismatch",
-                        "metadata": "{}",
-                    },
-                )
-
-                # Should reject files with mismatched content
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

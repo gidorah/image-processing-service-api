@@ -1,8 +1,9 @@
 from django.urls import reverse
 from rest_framework import status
 
-from tests.security.base import SecurityTestBase
 from api.models import SourceImage, TransformationTask
+from tests.security.base import SecurityTestBase
+from tests.utils import create_test_image_file
 
 
 class PermissionTest(SecurityTestBase):
@@ -298,7 +299,7 @@ class PermissionTest(SecurityTestBase):
         # Create images with sensitive information in metadata
         self.authenticate_user(self.user_a)
         sensitive_image_a = SourceImage.objects.create(
-            file=self.create_test_image_file("sensitive_a.jpg"),
+            file=create_test_image_file("sensitive_a.jpg"),
             file_name="sensitive_document_a.jpg",
             description="Confidential user A data",
             metadata={"sensitive": "user_a_secret_data"},
@@ -307,7 +308,7 @@ class PermissionTest(SecurityTestBase):
 
         self.authenticate_user(self.user_b)
         sensitive_image_b = SourceImage.objects.create(
-            file=self.create_test_image_file("sensitive_b.jpg"),
+            file=create_test_image_file("sensitive_b.jpg"),
             file_name="sensitive_document_b.jpg",
             description="Confidential user B data",
             metadata={"sensitive": "user_b_secret_data"},

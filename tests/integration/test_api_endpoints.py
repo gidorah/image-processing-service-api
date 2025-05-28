@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from api.models import SourceImage, TransformationTask, TransformedImage
+from tests.utils import create_test_image_file
 
 User = get_user_model()
 
@@ -139,6 +140,97 @@ class APIImageUploadTests(APITestCase):
         }
         response = self.client.post(self.upload_url, data, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_image_dimensions_validation(self):
+        """Test validation of extreme image dimensions"""
+        # Test with extreme dimensions that could cause memory issues
+        extreme_dimensions = [
+            (1, 1),  # Too small
+            (10000, 10000),  # Very large
+            (0, 100),  # Zero width
+            (100, 0),  # Zero height
+            (-100, 100),  # Negative width
+            (100, -100),  # Negative height
+        ]
+
+        for width, height in extreme_dimensions:
+            with self.subTest(width=width, height=height):
+                try:
+                    # Some dimensions might fail during image creation
+                    image_file = create_test_image_file(
+                        "test.jpg", size=(abs(width) or 1, abs(height) or 1)
+                    )
+
+                    response = self.client.post(
+                        self.upload_url,
+                        {
+                            "file": image_file,
+                            "file_name": "extreme_dimensions.jpg",
+                            "description": f"Test {width}x{height} dimensions",
+                            "metadata": "{}",
+                        },
+                        format="multipart",
+                    )
+
+                    # Should handle extreme dimensions appropriately
+                    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                except Exception:
+                    # If image creation fails due to invalid dimensions, that's acceptable
+                    pass
+
+    def test_concurrent_file_uploads(self):
+        """Test handling of multiple concurrent file uploads"""
+        # Simulate multiple rapid uploads
+        for i in range(5):
+            with self.subTest(upload=i):
+                image_file = create_test_image_file(f"concurrent_{i}.jpg")
+
+                response = self.client.post(
+                    self.upload_url,
+                    {
+                        "file": image_file,
+                        "file_name": f"concurrent_{i}.jpg",
+                        "description": f"Concurrent upload {i}",
+                        "metadata": "{}",
+                    },
+                    format="multipart",
+                )
+
+                # All uploads should be handled correctly
+                self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_file_content_vs_extension_mismatch(self):
+        """Test handling of files where content doesn't match extension"""
+        mismatched_files = [
+            ("document.pdf", "test.jpg", "application/pdf"),
+            ("archive.zip", "test.png", "application/zip"),
+            ("script.js", "test.gif", "application/javascript"),
+            ("style.css", "test.bmp", "text/css"),
+            ("data.xml", "test.webp", "application/xml"),
+        ]
+
+        for content_type, filename, mime_type in mismatched_files:
+            with self.subTest(filename=filename):
+                # Create a file with mismatched content
+                mismatched_content = f"This is actually a {content_type} file".encode()
+
+                mismatched_file = SimpleUploadedFile(
+                    filename, mismatched_content, content_type=mime_type
+                )
+
+                response = self.client.post(
+                    self.upload_url,
+                    {
+                        "file": mismatched_file,
+                        "file_name": filename,
+                        "description": "Test content mismatch",
+                        "metadata": "{}",
+                    },
+                    format="multipart",
+                )
+
+                # Should reject files with mismatched content
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])

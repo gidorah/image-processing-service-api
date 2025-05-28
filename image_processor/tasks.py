@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Defining Callable type for transformation functions
 # to catch potential type errors
-TransformFunc = Callable[..., Image.Image]
+TransformFunc = Callable[..., Image.Image | None]
 
 
 def _get_task_and_set_in_progress(task_id) -> TransformationTask:
@@ -44,6 +44,9 @@ def _get_task_and_set_in_progress(task_id) -> TransformationTask:
 
     if not task.transformations:
         logger.error(f"No transformations were defined for task: {task_id}.")
+        task.status = TaskStatus.FAILED
+        task.error_message = "No transformations were defined for task."
+        task.save()
         raise NoTransformationsDefined()
 
     # Since task and transformations are valid, set status to IN_PROGRESS
@@ -100,13 +103,21 @@ def _load_image_and_determine_format(
 
 
 def _apply_processing_steps(
-    processed_image: Image.Image, task: TransformationTask, image_format: str
-) -> Image.Image:
+    processed_image: Image.Image | None,
+    task: TransformationTask,
+    image_format: str,
+) -> Image.Image | None:
     """
     Applies transformations and final color mode conversion.
     """
 
     logger.info(f"Applying transformations for task: {task.id}.")
+
+    if not task.transformations:
+        logger.error(f"No transformations were applied for task: {task.id}.")
+        raise NoTransformationsDefined(
+            detail=f"No transformations were applied for task: {task.id}."
+        )
 
     for transformation in task.transformations:
         operation = transformation.get("operation")
@@ -124,23 +135,23 @@ def _apply_processing_steps(
 
         try:
             processed_image = transform_func(processed_image, **params)
+            if not processed_image:
+                logger.error(f"Transformation failed for task: {task.id}.")
+                raise TransformationFailed(
+                    detail=f"Transformation failed for task: {task.id}."
+                )
         except Exception as e:
             logger.error(
                 f"Error applying transformation {operation} for task: {task.id}: {e}",
                 exc_info=True,
             )
             raise TransformationFailed(
-                detail=f"Error applying transformation {operation} for task: {task.id}: {e}"
-            )
-
-        if not processed_image:
-            logger.error(f"Transformation failed for task: {task.id}.")
-            raise TransformationFailed(
-                detail=f"Transformation failed for task: {task.id}."
+                detail=f"Error applying transformation {operation} "
+                f"for task: {task.id}: {e}"
             )
 
     # Ensure RGB mode if image is RGBA
-    if processed_image.mode == "RGBA":
+    if processed_image and processed_image.mode == "RGBA":
         # This conversion can fail, handled this in the main except block.
         processed_image = processed_image.convert("RGB")
         if not processed_image:
@@ -269,7 +280,7 @@ def apply_transformations(task_id):
         raise e
 
 
-def crop(image: Image.Image, x, y, width, height) -> Image.Image:
+def crop(image: Image.Image, x, y, width, height) -> Image.Image | None:
     """
     Crop an image.
     """
@@ -280,21 +291,21 @@ def crop(image: Image.Image, x, y, width, height) -> Image.Image:
     return image.crop(box)
 
 
-def resize(image: Image.Image, width, height) -> Image.Image:
+def resize(image: Image.Image, width, height) -> Image.Image | None:
     """
     Resize an image.
     """
     return image.resize((width, height))
 
 
-def rotate(image: Image.Image, degrees) -> Image.Image:
+def rotate(image: Image.Image, degrees) -> Image.Image | None:
     """
     Rotate an image.
     """
     return image.rotate(angle=degrees)
 
 
-def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
+def watermark(image: Image.Image, watermark_text: str) -> Image.Image | None:
     """
     Applies a standard, semi-transparent, diagonal watermark text
     across the image center.
@@ -328,28 +339,28 @@ def watermark(image: Image.Image, watermark_text: str) -> Image.Image:
     return Image.alpha_composite(image, watermark_image)
 
 
-def flip(image: Image.Image) -> Image.Image:
+def flip(image: Image.Image) -> Image.Image | None:
     """
     Flip an image vertically (top to bottom).
     """
     return ImageOps.flip(image)
 
 
-def mirror(image: Image.Image) -> Image.Image:
+def mirror(image: Image.Image) -> Image.Image | None:
     """
     Mirror an image horizontally (left to right).
     """
     return ImageOps.mirror(image)
 
 
-def grayscale(image: Image.Image) -> Image.Image:
+def grayscale(image: Image.Image) -> Image.Image | None:
     """
     Convert an image to grayscale.
     """
     return image.convert("L")
 
 
-def sepia(image: Image.Image) -> Image.Image:
+def sepia(image: Image.Image) -> Image.Image | None:
     """
     Apply a sepia filter to an image using a standard conversion matrix.
     Ensures the image is in RGB mode before applying the filter.
@@ -380,7 +391,7 @@ def sepia(image: Image.Image) -> Image.Image:
     return image.convert("RGB", sepia_matrix)
 
 
-def blur(image: Image.Image) -> Image.Image:
+def blur(image: Image.Image) -> Image.Image | None:
     """
     Apply a blur filter to an image.
     """
@@ -388,7 +399,7 @@ def blur(image: Image.Image) -> Image.Image:
 
 
 # Define available filters from ImageFilter
-AVAILABLE_FILTERS = {
+AVAILABLE_FILTERS: dict[str, TransformFunc] = {
     "BLUR": blur,
     "GRAYSCALE": grayscale,
     "SEPIA": sepia,
@@ -397,7 +408,7 @@ AVAILABLE_FILTERS = {
 }
 
 
-def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image:
+def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image | None:
     """
     Apply a predefined filter to an image.
 
@@ -411,13 +422,21 @@ def apply_filter(image: Image.Image, *args, **kwargs) -> Image.Image:
     """
 
     for filter_name, filter_params in kwargs.items():
-        filter_to_apply = AVAILABLE_FILTERS.get(filter_name.upper())
+        filter_to_apply: TransformFunc | None = AVAILABLE_FILTERS.get(
+            filter_name.upper()
+        )
         if filter_to_apply:
             logger.info(f"Applying filter: {filter_name}")
-            image = filter_to_apply(image)
+            filtered_image = filter_to_apply(image)
+            if not filtered_image:
+                logger.error(f"Failed to apply filter: {filter_name}.")
+                raise TransformationFailed(
+                    detail=f"Failed to apply filter: {filter_name}."
+                )
+            image = filtered_image
         else:
-            logger.warning(f"Invalid filter name: {filter_name}. No filter applied.")
-            raise ValueError(f"Invalid filter name: {filter_name}")
+            logger.error(f"Invalid filter name: {filter_name}. No filter applied.")
+            raise InvalidTransformation(f"Invalid filter name: {filter_name}")
 
     return image
 

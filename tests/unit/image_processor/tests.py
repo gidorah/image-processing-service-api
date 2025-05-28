@@ -1,6 +1,7 @@
 from django.test import TestCase
 from PIL import Image, ImageDraw
 
+from api.exceptions import InvalidTransformation
 from image_processor.tasks import (
     TRANSFORMATION_MAP,
     apply_filter,
@@ -150,7 +151,7 @@ class TestImageTransformations(TestCase):
     def test_apply_filter_should_raise_value_error_if_invalid_filter(self):
         """Test filter application functionality."""
         # Test applying an invalid filter
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidTransformation):
             apply_filter(self.test_image, invalid_filter=True)
 
 

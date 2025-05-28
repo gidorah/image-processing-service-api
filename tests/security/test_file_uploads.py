@@ -95,8 +95,6 @@ class FileUploadSecurityTest(SecurityTestBase):
             content_type="image/jpg",
         )
 
-        print(f"large file size: {large_file.size}")
-
         # Check if the file size is greater than the limit
         self.assertGreater(large_file.size, settings.IMAGE_MAX_FILE_SIZE_IN_BYTES)
 
@@ -109,8 +107,6 @@ class FileUploadSecurityTest(SecurityTestBase):
                 "metadata": "{}",
             },
         )
-
-        print(f"large file response: {response.content}")
 
         # Should be rejected due to size
         self.assertEqual(response.status_code, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)

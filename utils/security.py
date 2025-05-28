@@ -69,7 +69,47 @@ def _remove_control_characters(content):
     return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", content)
 
 
-def sanitize_filename(filename):
+def _remove_unicode_injection_payloads(content):
+    """
+    Helper function to remove unicode injection payloads from content.
+
+    Removes various Unicode characters that can be used for injection attacks:
+    - Control characters (C0 and C1 control codes)
+    - Right-to-left override characters (used for filename spoofing)
+    - Zero-width characters (invisible characters)
+    - Byte order marks
+    - Other potentially dangerous Unicode characters
+    """
+    if not isinstance(content, str):
+        return content
+
+    # Remove C0 control characters (0x00-0x1F) and DEL (0x7F)
+    content = re.sub(r"[\u0000-\u001f\u007f]", "", content)
+
+    # Remove C1 control characters (0x80-0x9F)
+    content = re.sub(r"[\u0080-\u009f]", "", content)
+
+    # Remove bidirectional text control characters (used for filename spoofing)
+    content = re.sub(r"[\u202a-\u202e]", "", content)  # LRE, RLE, PDF, LRO, RLO
+    content = re.sub(r"[\u2066-\u2069]", "", content)  # LRI, RLI, FSI, PDI
+
+    # Remove zero-width characters (invisible characters)
+    content = re.sub(r"[\u200b-\u200f]", "", content)  # ZWSP, ZWNJ, ZWJ, LRM, RLM
+    content = re.sub(
+        r"[\u2028-\u2029]", "", content
+    )  # Line separator, paragraph separator
+    content = re.sub(r"\ufeff", "", content)  # Byte order mark (BOM)
+
+    # Remove other potentially dangerous Unicode characters
+    content = re.sub(r"[\u00ad]", "", content)  # Soft hyphen
+    content = re.sub(r"[\u034f]", "", content)  # Combining grapheme joiner
+    content = re.sub(r"[\u061c]", "", content)  # Arabic letter mark
+    content = re.sub(r"[\u180e]", "", content)  # Mongolian vowel separator
+
+    return content
+
+
+def sanitize_string_input(filename):
     """
     Sanitize a filename to prevent path traversal and other security issues.
 
@@ -91,14 +131,16 @@ def sanitize_filename(filename):
     filename = _remove_control_characters(filename)
     filename = _remove_dangerous_patterns(filename)
     filename = _remove_html_tags(filename)
+    filename = _remove_unicode_injection_payloads(filename)
 
     # Remove path traversal patterns
     filename = re.sub(r"\.\.+", "", filename)  # Remove .. patterns
     filename = re.sub(r"[/\\]", "", filename)  # Remove path separators
 
-    # Remove dangerous characters for filenames
-    dangerous_chars = r'[<>:"|?*]'
+    # Remove other dangerous characters
+    dangerous_chars = r'[<>:"|?*;&%$=]'
     filename = re.sub(dangerous_chars, "", filename)
+    filename = re.sub("--", "", filename)
 
     # Remove Windows reserved names
     windows_reserved = [

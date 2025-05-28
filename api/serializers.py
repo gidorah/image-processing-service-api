@@ -12,7 +12,7 @@ from api.exceptions import FileSizeExceededError
 from api.models import SourceImage, TransformationTask, TransformedImage
 from utils.security import (
     escape_html_content,
-    sanitize_filename,
+    sanitize_string_input,
     sanitize_metadata,
     sanitize_transformations,
 )
@@ -146,14 +146,14 @@ class UploadImageSerializer(serializers.ModelSerializer):
                     "Double extensions are not allowed in filenames", code="invalid"
                 )
 
-            return sanitize_filename(value)
+            return sanitize_string_input(value)
         return value
 
     def validate_description(self, value):
         """
         Escape HTML content in description to prevent XSS.
         """
-        return escape_html_content(value)
+        return sanitize_string_input(value)
 
     def create(self, validated_data):
         # Extract and set metadata

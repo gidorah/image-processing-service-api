@@ -127,7 +127,7 @@ def upload_image(request) -> Response:
     except serializers.ValidationError as e:
         return Response(e.detail, status=e.status_code)
     except Exception as e:
-        logger.error(f"upload_image error: {e}")
+        logger.error(f"Unhandled exception in upload_image: {e}")
         raise e
 
 

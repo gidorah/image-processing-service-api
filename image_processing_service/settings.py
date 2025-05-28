@@ -17,6 +17,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -154,6 +155,12 @@ else:
         "region_name": os.environ.get("AWS_S3_REGION_NAME"),
     }
 
+    missing = [key for key, val in aws_config.items() if not val]
+    if missing:
+        raise ImproperlyConfigured(
+            f"Missing AWS credential(s) for S3 storage: {', '.join(missing)}"
+        )
+
     STORAGES.update(
         {
             "default": {
@@ -215,7 +222,8 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
-    "SIGNING_KEY": os.environ.get("DJANGO_SECRET_KEY"),
+    # Use the same key Django uses so that tokens work in all environments
+    "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
     # ... other settings you want to customize
 }
@@ -351,5 +359,5 @@ LOGGING = {
 IMAGE_MAX_PIXEL_SIZE = int(os.getenv("IMAGE_MAX_PIXEL_SIZE", 4096))
 IMAGE_MIN_PIXEL_SIZE = int(os.getenv("IMAGE_MIN_PIXEL_SIZE", 100))
 IMAGE_MAX_FILE_SIZE_IN_BYTES = int(
-    os.getenv("IMAGE_MAX_FILE_SIZE_IN_BYTE", 10 * 1024 * 1024)
+    os.getenv("IMAGE_MAX_FILE_SIZE_IN_BYTES", 10 * 1024 * 1024)
 )

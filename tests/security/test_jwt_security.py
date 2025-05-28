@@ -68,8 +68,13 @@ class JWTSecurityTest(SecurityTestBase):
             "jti": "test-jti",
         }
 
-        # Create token with 'none' algorithm (no signature)
-        none_token = jwt.encode(payload, "", algorithm="none")
+        # Create token with an explicit “none” algorithm (no signature)
+        none_token = jwt.encode(
+            payload,
+            key=None,  # key must be None for alg "none"
+            algorithm=None,  # PyJWT≥2: set algorithm to None
+            headers={"alg": "none"},  # keep header explicit
+        )
 
         # Try to access protected endpoint
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {none_token}")
@@ -208,8 +213,10 @@ class JWTSecurityTest(SecurityTestBase):
         # Try to send request with multiple authorization headers
         response = self.client.get(
             reverse("source_image_list"),
-            HTTP_AUTHORIZATION=f"Bearer {tokens['access']}",
-            HTTP_AUTHORIZATION_2="Bearer invalid-token",
+            **{
+                "HTTP_AUTHORIZATION": f"Bearer {tokens['access']}",
+                "HTTP_AUTHORIZATION_2": "Bearer invalid-token",
+            },
         )
 
         # Should use the first valid authorization header

@@ -109,6 +109,16 @@ def _remove_unicode_injection_payloads(content):
     return content
 
 
+def _remove_php_code(content):
+    """
+    Helper function to remove PHP code from content.
+    """
+    if not isinstance(content, str):
+        return content
+
+    return re.sub(r"<\?php", "", content)
+
+
 def sanitize_string_input(filename):
     """
     Sanitize a filename to prevent path traversal and other security issues.
@@ -127,11 +137,15 @@ def sanitize_string_input(filename):
     # URL decode the filename to handle encoded path traversal attempts
     filename = unquote(filename)
 
+    # Escape HTML content
+    filename = _escape_html_content(filename)
+
     # Apply common dangerous pattern removal
     filename = _remove_control_characters(filename)
     filename = _remove_dangerous_patterns(filename)
     filename = _remove_html_tags(filename)
     filename = _remove_unicode_injection_payloads(filename)
+    filename = _remove_php_code(filename)
 
     # Remove path traversal patterns
     filename = re.sub(r"\.\.+", "", filename)  # Remove .. patterns
@@ -200,7 +214,7 @@ def sanitize_string_input(filename):
     return filename
 
 
-def escape_html_content(content):
+def _escape_html_content(content):
     """
     Escape HTML content to prevent XSS attacks.
 
@@ -217,9 +231,6 @@ def escape_html_content(content):
 
     # First escape HTML entities
     content = html.escape(content, quote=True)
-
-    # Apply common dangerous pattern removal
-    content = _remove_dangerous_patterns(content)
 
     if content != original_content:
         logger.warning(
@@ -245,12 +256,12 @@ def sanitize_metadata(metadata):
     sanitized = {}
     for key, value in metadata.items():
         if isinstance(value, str):
-            sanitized[key] = escape_html_content(value)
+            sanitized[key] = _escape_html_content(value)
         elif isinstance(value, dict):
             sanitized[key] = sanitize_metadata(value)
         elif isinstance(value, list):
             sanitized[key] = [
-                escape_html_content(item) if isinstance(item, str) else item
+                _escape_html_content(item) if isinstance(item, str) else item
                 for item in value
             ]
         else:
@@ -291,7 +302,7 @@ def sanitize_transformations(transformations):
         operation = transformation.get("operation", "")
         if isinstance(operation, str):
             # Apply common sanitization
-            operation = escape_html_content(operation)
+            operation = _escape_html_content(operation)
             operation = re.sub(
                 r"[^\w-]", "", operation
             )  # Only allow alphanumeric and hyphens
@@ -319,23 +330,22 @@ def sanitize_transformations(transformations):
                     safe_key = re.sub(
                         r"[^\w_]", "", key
                     )  # Only allow alphanumeric and underscores
-                    safe_key = escape_html_content(safe_key)
+                    safe_key = _escape_html_content(safe_key)
 
                     # Sanitize parameter values
                     if isinstance(value, str):
-                        safe_value = escape_html_content(value)
+                        safe_value = _escape_html_content(value)
                         sanitized_params[safe_key] = safe_value
                     elif isinstance(value, (int, float)):
                         # Validate numeric parameters are within reasonable bounds
-                        if isinstance(value, (int, float)) and -10000 <= value <= 10000:
+                        if -10000 <= value <= 10000:
                             sanitized_params[safe_key] = value
                         else:
                             logger.warning(
-                                f"Security: Parameter value {value} out of bounds, setting to 0"
+                                f"Security: Parameter value {value} out of bounds, "
+                                "setting to 0"
                             )
                             sanitized_params[safe_key] = 0
-                    elif isinstance(value, bool):
-                        sanitized_params[safe_key] = value
                     else:
                         logger.warning(
                             f"Security: Unsupported parameter type for {key}, skipping"

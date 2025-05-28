@@ -11,9 +11,8 @@ from rest_framework.exceptions import NotFound
 from api.exceptions import FileSizeExceededError
 from api.models import SourceImage, TransformationTask, TransformedImage
 from utils.security import (
-    escape_html_content,
-    sanitize_string_input,
     sanitize_metadata,
+    sanitize_string_input,
     sanitize_transformations,
 )
 from utils.utils import extract_metadata
@@ -157,6 +156,12 @@ class UploadImageSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Extract and set metadata
+
+        if not validated_data["file"].image:
+            raise serializers.ValidationError(
+                "File is not a valid image", code="invalid"
+            )
+
         metadata = extract_metadata(image=validated_data["file"].image)
         # Sanitize metadata to prevent XSS
         validated_data["metadata"] = sanitize_metadata(metadata)

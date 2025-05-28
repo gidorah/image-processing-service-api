@@ -273,9 +273,7 @@ def apply_transformations(task_id):
 
     except Exception as e:
         logger.error(f"Error while applying transformations: {e}", exc_info=True)
-        print("Error while applying transformations: ", e)
         if task:
-            print("Setting task status to FAILED")
             task.status = TaskStatus.FAILED
             task.error_message = str(e)
             task.save()

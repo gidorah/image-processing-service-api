@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import hashlib
 import os
 import sys
 from datetime import timedelta
@@ -33,7 +34,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if "test" in sys.argv:
     SECRET_KEY = "dummy_secret_key_for_testing"
 else:
-    SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dummy_secret_key_for_development")
+    SECRET_KEY = os.getenv(
+        "DJANGO_SECRET_KEY", hashlib.sha256(os.urandom(64)).hexdigest()
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
@@ -195,7 +198,7 @@ CACHES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",  # noqa: E501 # noqa: E501
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

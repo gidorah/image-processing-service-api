@@ -8,7 +8,7 @@ django-celery-results==2.6.0
 sentry-sdk==2.29.1
 python-dotenv==1.1.0
 psycopg2-binary==2.9.10
-debugpy==1.8.13
+debugpy==1.8.14
 django-celery-beat==2.7.0
 django-redis==5.4.0
 djangorestframework-simplejwt[crypto]==5.5.0

@@ -38,7 +38,9 @@ else:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS: list = []
+ALLOWED_HOSTS: list = ["127.0.0.1", "localhost"] + os.getenv("ALLOWED_HOSTS", "").split(
+    ","
+)
 
 
 # Application definition

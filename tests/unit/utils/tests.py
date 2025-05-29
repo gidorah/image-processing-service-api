@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.test import TestCase
 
-from utils.exceptions import MetadataExtractionFailed
+from utils.exceptions import MetadataExtractionError
 from utils.utils import (
     extract_metadata,
     generate_transformation_cache_key,
@@ -26,7 +26,7 @@ class TestExtractMetadata(TestCase):
         type(mock_image).width = PropertyMock(side_effect=Exception(exception_str))
         type(mock_image).height = PropertyMock(side_effect=Exception(exception_str))
 
-        with self.assertRaises(MetadataExtractionFailed) as context:
+        with self.assertRaises(MetadataExtractionError) as context:
             extract_metadata(mock_image)
         self.assertIn(exception_str, str(context.exception))
 
@@ -38,7 +38,7 @@ class TestExtractMetadata(TestCase):
         mock_image.width = 800
         mock_image.height = None  # we missed height on purpose
 
-        with self.assertRaises(MetadataExtractionFailed) as context:
+        with self.assertRaises(MetadataExtractionError) as context:
             extract_metadata(mock_image)
         self.assertIn("Missing image metadata", str(context.exception))
 

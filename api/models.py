@@ -82,7 +82,8 @@ class BaseImage(models.Model):
                 exc_info=True,
             )
             raise StorageUploadFailed(
-                detail=f"Failed to upload {self.file.name} to S3. Please try again later."
+                detail=f"Failed to upload {self.file.name} to S3. "
+                "Please try again later."
             ) from e
 
     def __str__(self) -> str:

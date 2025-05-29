@@ -4,7 +4,7 @@ import logging
 
 from django.core.cache import cache
 
-from utils.exceptions import MetadataExtractionFailed
+from utils.exceptions import MetadataExtractionError
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def extract_metadata(image) -> dict:
             logger.error(
                 f"Missing image metadata detected: {', '.join(missing_attrs)} - values: {image.format}, {image.mode}, {image.width}, {image.height}"
             )
-            raise MetadataExtractionFailed(
+            raise MetadataExtractionError(
                 f"Missing image metadata: {', '.join(missing_attrs)}"
             )
 
@@ -38,7 +38,7 @@ def extract_metadata(image) -> dict:
         # metadata["size"] = image_file.size
     except Exception as e:
         logger.error(f"Caught exception in extract_metadata: {type(e).__name__}: {e}")
-        raise MetadataExtractionFailed(str(e))
+        raise MetadataExtractionError(str(e))
     return metadata
 
 

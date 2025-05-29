@@ -40,12 +40,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data) -> AbstractUser:
-        user = User.objects.create_user(
+        return User.objects.create_user(
             username=validated_data["username"],
             password=validated_data["password"],
         )
 
-        return user
 
 
 class LoginSerializer(serializers.Serializer):

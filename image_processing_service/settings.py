@@ -32,11 +32,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 # Note: In a production environment, you should set this in an environment variabl
 if "test" in sys.argv:
-    SECRET_KEY = "dummy_secret_key_for_testing"
+    SECRET_KEY: str | None = "dummy_secret_key_for_testing"
 else:
-    SECRET_KEY = os.getenv(
-        "DJANGO_SECRET_KEY", hashlib.sha256(os.urandom(64)).hexdigest()
-    )
+    SECRET_KEY: str | None = os.getenv("DJANGO_SECRET_KEY")
+    if not SECRET_KEY:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY environment variable is required")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import hashlib
 import os
 import sys
 from datetime import timedelta
@@ -31,15 +32,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 # Note: In a production environment, you should set this in an environment variabl
 if "test" in sys.argv:
-    SECRET_KEY = "dummy_secret_key_for_testing"
+    SECRET_KEY: str | None = "dummy_secret_key_for_testing"
 else:
-    SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dummy_secret_key_for_development")
+    SECRET_KEY: str | None = os.getenv("DJANGO_SECRET_KEY")
+    if not SECRET_KEY:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY environment variable is required")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-ALLOWED_HOSTS: list = []
+ALLOWED_HOSTS: list = ["127.0.0.1", "localhost"] + os.getenv("ALLOWED_HOSTS", "").split(
+    ","
+)
 
+# Security settings
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True").lower() == "true"
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True").lower() == "true"
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", 31536000))  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+    os.getenv("SECURE_HSTS_INCLUDE_SUBDOMAINS", "True").lower() == "true"
+)
+SECURE_HSTS_PRELOAD = os.getenv("SECURE_HSTS_PRELOAD", "False").lower() == "true"
 
 # Application definition
 
@@ -193,7 +207,7 @@ CACHES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",  # noqa: E501 # noqa: E501
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

@@ -32,7 +32,9 @@ class AuthBypassTest(SecurityTestBase):
                 self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_protected_endpoints_with_detail_pk_without_auth_rejected(self):
-        """Test that protected detail endpoints reject requests without authentication"""
+        """
+        Test that protected detail endpoints reject requests without authentication
+        """
         # Create test image first
         self.authenticate_user(self.user_a)
         source_image = self.create_test_source_image(self.user_a)

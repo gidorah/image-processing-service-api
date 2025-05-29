@@ -23,7 +23,8 @@ def extract_metadata(image) -> dict:
         missing_attrs = [attr for attr, value in required_attrs.items() if not value]
         if missing_attrs:
             logger.error(
-                f"Missing image metadata detected: {', '.join(missing_attrs)} - values: {image.format}, {image.mode}, {image.width}, {image.height}"
+                f"Missing image metadata detected: {', '.join(missing_attrs)} - values:"
+                f"{image.format}, {image.mode}, {image.width}, {image.height}"
             )
             raise MetadataExtractionError(
                 f"Missing image metadata: {', '.join(missing_attrs)}"
@@ -78,11 +79,11 @@ def get_transformed_image_id_from_cache(source_image_id, transformations, image_
         transformed_image_id = cache.get(cache_key)
         if transformed_image_id:
             logger.debug(
-                f"Transformed image ID {transformed_image_id} found in cache for key {cache_key}"
+                f"Transformed image ID {transformed_image_id} "
+                f"found in cache for key {cache_key}"
             )
             return transformed_image_id
-        else:
-            logger.debug(f"No transformed image ID found in cache for key {cache_key}")
+        logger.debug(f"No transformed image ID found in cache for key {cache_key}")
     logger.error(f"Cache key generation failed for source_image_id: {source_image_id}")
     return None
 
@@ -98,14 +99,16 @@ def set_transformed_image_id_to_cache(
     )
     if not cache_key:
         logger.error(
-            f"Cache key generation failed for source_image_id: {source_image_id}, transformations: {transformations}, image_format: {image_format}"
+            f"Cache key generation failed for source_image_id: {source_image_id}, "
+            f"transformations: {transformations}, image_format: {image_format}"
         )
         return
 
     try:
         cache.set(cache_key, transformed_image_id)
         logger.info(
-            f"Transformed image ID {transformed_image_id} set in cache for key {cache_key}"
+            f"Transformed image ID {transformed_image_id} set in cache "
+            f"for key {cache_key}"
         )
     except Exception as e:
         logger.error(f"Error setting transformed image ID to cache: {e}")

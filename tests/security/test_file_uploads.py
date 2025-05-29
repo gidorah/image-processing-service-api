@@ -59,7 +59,9 @@ class FileUploadSecurityTest(SecurityTestBase):
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_image_file_with_wrong_extension_handled(self):
-        """Test that valid image files with wrong extensions are handled appropriately"""
+        """
+        Test that valid image files with wrong extensions are handled appropriately
+        """
         self.authenticate_user(self.user_a)
 
         # Create a valid PNG image but name it with different extension
@@ -175,7 +177,7 @@ class FileUploadSecurityTest(SecurityTestBase):
                             self.assertNotIn(
                                 char,
                                 returned_filename,
-                                f"Dangerous character '{char}' not sanitized in filename",
+                                f"Dangerous character '{char}' not sanitized",
                             )
                 else:
                     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -219,7 +221,9 @@ class FileUploadSecurityTest(SecurityTestBase):
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_polyglot_file_upload_security(self):
-        """Test security against polyglot files (files that are valid in multiple formats)"""
+        """
+        Test security against polyglot files (files that are valid in multiple formats)
+        """
         self.authenticate_user(self.user_a)
 
         # Create a file that could be interpreted as both image and script

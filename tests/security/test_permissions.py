@@ -8,7 +8,8 @@ from tests.utils import create_test_image_file
 
 class PermissionTest(SecurityTestBase):
     """
-    Test suite for permission testing - ensuring users can only access their own resources
+    Test suite for permission testing - ensuring users can only access
+    their own resources
     """
 
     def setUp(self):
@@ -207,7 +208,8 @@ class PermissionTest(SecurityTestBase):
         self.authenticate_user(self.user_a)
         user_image = self.create_test_source_image(self.user_a, "admin_test.jpg")
 
-        # Admin should not automatically see all users' images unless explicitly permitted
+        # Admin should not automatically see all users' images
+        # unless explicitly permitted
         self.authenticate_user(self.admin_user)
         response = self.client.get(reverse("source_image_list"))
 
@@ -282,7 +284,9 @@ class PermissionTest(SecurityTestBase):
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_permission_with_deleted_user_objects(self):
-        """Test permission handling when related user objects are in inconsistent state"""
+        """
+        Test permission handling when related user objects are in inconsistent state
+        """
         # This test ensures that permission checks don't break with orphaned objects
         self.authenticate_user(self.user_a)
 
@@ -375,7 +379,7 @@ class PermissionTest(SecurityTestBase):
                 elif method == "DELETE":
                     response = self.client.delete(url)
 
-                # All should be denied - either 404 (not found), 405 (method not allowed), or 400 (bad request)
+                # All should be denied
                 self.assertIn(
                     response.status_code,
                     [

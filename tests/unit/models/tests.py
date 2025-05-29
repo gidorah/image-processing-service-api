@@ -89,7 +89,9 @@ class SourceImageModelTest(TestCase):
         self.assertEqual(self.source_image.owner.username, TEST_USERNAME)
 
     def test_source_image_attributes(self):
-        """Test the basic attributes of the SourceImage model (inherited from BaseImage)."""
+        """
+        Test the basic attributes of the SourceImage model (inherited from BaseImage).
+        """
         self.assertEqual(self.source_image.file_name, TEST_FILE_NAME)
         self.assertEqual(self.source_image.description, TEST_DESCRIPTION)
         self.assertTrue(self.source_image.file.name.startswith("images/"))
@@ -127,7 +129,9 @@ class SourceImageModelTest(TestCase):
         self.assertEqual(source_image_no_name.file_name, expected_file_name)
 
     def test_unique_image_path(self):
-        """Test that saving two images with the same original name results in unique paths."""
+        """
+        Test that saving two images with the same original name results in unique paths.
+        """
         file1 = create_test_image(file_name="duplicate_name.jpg", format="JPEG")
         file2 = create_test_image(file_name="duplicate_name.jpg", format="JPEG")
 
@@ -233,7 +237,9 @@ class TransformedImageModelTest(TestCase):
         )
 
     def test_cascade_delete_on_transformation_task(self):
-        """Test that TransformedImage is deleted when its TransformationTask is deleted."""
+        """
+        Test that TransformedImage is deleted when its TransformationTask is deleted.
+        """
         task_id = self.transformation_task.id
         transformed_image_id = self.transformed_image.id
         self.assertTrue(TransformationTask.objects.filter(id=task_id).exists())
@@ -251,7 +257,10 @@ class TransformedImageModelTest(TestCase):
         )
 
     def test_missing_source_image_raises_error(self):
-        """Test that creating a TransformedImage without a source_image raises IntegrityError."""
+        """
+        Test that creating a TransformedImage without a source_image
+        raises IntegrityError.
+        """
 
         with self.assertRaises(IntegrityError):
             TransformedImage.objects.create(
@@ -264,7 +273,10 @@ class TransformedImageModelTest(TestCase):
             )
 
     def test_missing_transformation_task_raises_error(self):
-        """Test that creating a TransformedImage without a transformation_task raises IntegrityError."""
+        """
+        Test that creating a TransformedImage without a transformation_task
+        raises IntegrityError.
+        """
 
         with self.assertRaises(IntegrityError):
             TransformedImage.objects.create(

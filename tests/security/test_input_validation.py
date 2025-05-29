@@ -11,7 +11,10 @@ class InputValidationTest(SecurityTestBase):
     """
 
     def test_sql_injection_in_input(self):
-        """Test that SQL injection attempts in image descriptions and filenames are handled safely"""
+        """
+        Test that SQL injection attempts in image descriptions and
+        filenames are handled safely
+        """
         self.authenticate_user(self.user_a)
 
         sql_injection_payloads = [
@@ -86,9 +89,9 @@ class InputValidationTest(SecurityTestBase):
                     reverse("source_image_upload"),
                     {
                         "file": image_file,
-                        "file_name": payload,  # XSS in filename
-                        "description": f"Description with {payload}",  # XSS in description
-                        "metadata": f'{{"title": "{payload}"}}',  # XSS in metadata
+                        "file_name": payload,
+                        "description": f"Description with {payload}",
+                        "metadata": f'{{"title": "{payload}"}}',
                     },
                 )
 

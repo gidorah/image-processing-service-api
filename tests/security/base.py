@@ -70,17 +70,16 @@ class SecurityTestBase(TestCase):
         self, width=4096, height=4096, filename="large_image.jpg", quality=95
     ):
         """
-        Creates a JPG image with random pixel data and high quality to ensure a large file size.
+        Creates a JPG image with random pixel data and
+        high quality to ensure a large file size.
 
         Args:
             width (int): The width of the image in pixels.
             height (int): The height of the image in pixels.
             filename (str): The name of the output JPG file.
-            quality (int): The JPEG quality setting (0-100). Higher quality means larger file size.
+            quality (int): The JPEG quality setting (0-100). Higher quality
+            means larger file size.
         """
-        print(
-            f"\nAttempting to create a {width}x{height} JPG image with quality={quality}..."
-        )
 
         # Generate random 8-bit integer data for R, G, B channels
         random_data = np.random.randint(0, 256, size=(height, width, 3), dtype=np.uint8)

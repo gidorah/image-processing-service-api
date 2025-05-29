@@ -1,7 +1,7 @@
 import html
+import logging
 import os
 import re
-import logging
 from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def _remove_dangerous_patterns(content):
     # Remove data: URLs that could contain scripts
     content = re.sub(r"data:[^;]*;[^,]*,", "", content, flags=re.IGNORECASE)
 
-    return content
+    return content  # noqa: RET504
 
 
 def _remove_html_tags(content):
@@ -106,7 +106,7 @@ def _remove_unicode_injection_payloads(content):
     content = re.sub(r"[\u061c]", "", content)  # Arabic letter mark
     content = re.sub(r"[\u180e]", "", content)  # Mongolian vowel separator
 
-    return content
+    return content  # noqa: RET504
 
 
 def _remove_php_code(content):
@@ -312,7 +312,8 @@ def sanitize_transformations(transformations):
                 sanitized_transformation["operation"] = operation.lower()
             else:
                 logger.warning(
-                    f"Security: Disallowed operation '{operation}', skipping transformation"
+                    f"Security: Disallowed operation '{operation}', "
+                    "skipping transformation"
                 )
                 continue
         else:

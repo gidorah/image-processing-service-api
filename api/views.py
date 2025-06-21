@@ -9,7 +9,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from api.models import SourceImage, TransformationTask, TransformedImage
 from api.permissions import IsOwner
 from api.serializers import (
-    LoginSerializer,
     RegisterSerializer,
     SourceImageDetailSerializer,
     SourceImageListSerializer,
@@ -45,38 +44,9 @@ def register_user(request) -> Response:
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()  # Returns the user instance
-        token = get_tokens_for_user(user)
-        return Response(
-            {"user": serializer.data, "token": token}, status=status.HTTP_201_CREATED
-        )
+        # Tokens are now handled by dj-rest-auth in HttpOnly cookies
+        return Response({"user": serializer.data}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(["POST"])
-@permission_classes(permission_classes=[permissions.AllowAny])
-def login_user(request) -> Response:
-    """
-    API view for user login.
-    """
-
-    serializer = LoginSerializer(data=request.data, context={"request": request})
-
-    if serializer.is_valid():
-        user = serializer.validated_data["user"]
-
-        token = get_tokens_for_user(user)
-
-        return Response(
-            {
-                "user": {
-                    "id": serializer.validated_data["user"].id,
-                    "username": serializer.validated_data["user"].username,
-                },
-                "token": token,
-            },
-            status=status.HTTP_200_OK,
-        )
-    return Response(serializer.errors, status=status.HTTP_401_UNAUTHORIZED)
 
 
 class SourceImageListView(generics.ListAPIView):

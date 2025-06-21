@@ -61,39 +61,62 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.sites",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_celery_beat",
     "django_celery_results",
     "rest_framework",
+    "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
     "api",
     "image_processor",
     "storages",
+    "corsheaders",
+    "rest_framework.authtoken",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
     ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
-    "DEFAULT_THROTTLE_RATES": {"anon": "10/day", "user": "100/day"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/day",
+        "user": "1000/day",
+    },
+}
+
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_COOKIE": "access",
+    "JWT_AUTH_REFRESH_COOKIE": "refresh",
+    "JWT_AUTH_HTTPONLY": True,
+    "JWT_AUTH_SAMESITE": "Lax",
 }
 
 ROOT_URLCONF = "image_processing_service.urls"
@@ -371,3 +394,17 @@ IMAGE_MIN_PIXEL_SIZE = int(os.getenv("IMAGE_MIN_PIXEL_SIZE", 100))
 IMAGE_MAX_FILE_SIZE_IN_BYTES = int(
     os.getenv("IMAGE_MAX_FILE_SIZE_IN_BYTES", 10 * 1024 * 1024)
 )
+
+# ---------------------------------------------------------------------------
+# CORS / Cookie auth tweaks
+# ---------------------------------------------------------------------------
+# If ``django-cors-headers`` is installed we want to allow credentials so that
+# browsers will send the HttpOnly cookies along with cross-origin XHR requests.
+CORS_ALLOW_CREDENTIALS = True
+# Allow localhost on the frontend port during development (silently ignore if
+# ``django-cors-headers`` is not in INSTALLED_APPS).
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
+SITE_ID = 1

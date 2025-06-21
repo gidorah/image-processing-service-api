@@ -34,8 +34,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/auth/", include("dj_rest_auth.urls")),
+    path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
+    # dj-rest-auth endpoints for cookie-based authentication
     path("api/register/", views.register_user, name="register"),
-    path("api/login/", views.login_user, name="login"),
     path("api/images/", views.SourceImageListView.as_view(), name="source_image_list"),
     path(
         route="api/images/<int:pk>/",

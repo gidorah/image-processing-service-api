@@ -4,6 +4,7 @@ import jwt
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from tests.security.base import SecurityTestBase
 
@@ -27,8 +28,8 @@ class JWTSecurityTest(SecurityTestBase):
     def test_token_with_invalid_signature_rejected(self):
         """Test that tokens with invalid signatures are rejected"""
         # Get a valid token and tamper with it
-        tokens = self.get_tokens_for_user(self.user_a)
-        valid_token = tokens["access"]
+        refresh = RefreshToken.for_user(self.user_a)
+        valid_token = str(refresh.access_token)
 
         # Tamper with the token by changing a character
         tampered_token = valid_token[:-1] + ("x" if valid_token[-1] != "x" else "y")
@@ -68,7 +69,7 @@ class JWTSecurityTest(SecurityTestBase):
             "jti": "test-jti",
         }
 
-        # Create token with an explicit “none” algorithm (no signature)
+        # Create token with an explicit "none" algorithm (no signature)
         none_token = jwt.encode(
             payload,
             key=None,  # key must be None for alg "none"
@@ -84,12 +85,10 @@ class JWTSecurityTest(SecurityTestBase):
 
     def test_refresh_token_provides_new_access_token(self):
         """Test that valid refresh tokens can generate new access tokens"""
-        tokens = self.get_tokens_for_user(self.user_a)
+        refresh = RefreshToken.for_user(self.user_a)
 
         # Use refresh token to get new access token
-        response = self.client.post(
-            reverse("token_refresh"), {"refresh": tokens["refresh"]}
-        )
+        response = self.client.post(reverse("token_refresh"), {"refresh": str(refresh)})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
@@ -137,8 +136,8 @@ class JWTSecurityTest(SecurityTestBase):
     @override_settings(SIMPLE_JWT={"ROTATE_REFRESH_TOKENS": True})
     def test_refresh_token_rotation(self):
         """Test that refresh tokens are rotated when used"""
-        tokens = self.get_tokens_for_user(self.user_a)
-        original_refresh = tokens["refresh"]
+        refresh = RefreshToken.for_user(self.user_a)
+        original_refresh = str(refresh)
 
         # Use refresh token
         response = self.client.post(
@@ -208,13 +207,14 @@ class JWTSecurityTest(SecurityTestBase):
 
     def test_multiple_authorization_headers(self):
         """Test behavior with multiple authorization headers"""
-        tokens = self.get_tokens_for_user(self.user_a)
+        refresh = RefreshToken.for_user(self.user_a)
+        token = str(refresh.access_token)
 
         # Try to send request with multiple authorization headers
         response = self.client.get(
             reverse("source_image_list"),
             **{
-                "HTTP_AUTHORIZATION": f"Bearer {tokens['access']}",
+                "HTTP_AUTHORIZATION": f"Bearer {token}",
                 "HTTP_AUTHORIZATION_2": "Bearer invalid-token",
             },
         )
@@ -224,7 +224,8 @@ class JWTSecurityTest(SecurityTestBase):
 
     def test_case_sensitive_bearer_prefix(self):
         """Test that Bearer prefix is case sensitive"""
-        tokens = self.get_tokens_for_user(self.user_a)
+        refresh = RefreshToken.for_user(self.user_a)
+        token = str(refresh.access_token)
 
         # Test different cases
         prefixes = ["bearer", "BEARER", "Bearer"]
@@ -236,18 +237,17 @@ class JWTSecurityTest(SecurityTestBase):
 
         for prefix, expected in zip(prefixes, expected_results):
             with self.subTest(prefix=prefix):
-                self.client.credentials(
-                    HTTP_AUTHORIZATION=f"{prefix} {tokens['access']}"
-                )
+                self.client.credentials(HTTP_AUTHORIZATION=f"{prefix} {token}")
                 response = self.client.get(reverse("source_image_list"))
                 self.assertEqual(response.status_code, expected)
 
     def test_token_without_bearer_prefix_rejected(self):
         """Test that tokens without Bearer prefix are rejected"""
-        tokens = self.get_tokens_for_user(self.user_a)
+        refresh = RefreshToken.for_user(self.user_a)
+        token = str(refresh.access_token)
 
         # Send token without Bearer prefix
-        self.client.credentials(HTTP_AUTHORIZATION=tokens["access"])
+        self.client.credentials(HTTP_AUTHORIZATION=token)
         response = self.client.get(reverse("source_image_list"))
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

@@ -48,23 +48,13 @@ class SecurityTestBase(TestCase):
             username="admin", email="admin@test.com", password="admin_password_789!"
         )
 
-    def get_tokens_for_user(self, user):
-        """Generate JWT tokens for a user"""
-        refresh = RefreshToken.for_user(user)
-        return {
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        }
-
     def authenticate_user(self, user):
         """Authenticate a user with the test client"""
-        tokens = self.get_tokens_for_user(user)
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['access']}")
-        return tokens
+        self.client.force_authenticate(user=user)
 
     def clear_authentication(self):
         """Clear authentication from the test client"""
-        self.client.credentials()
+        self.client.force_authenticate(user=None)
 
     def create_large_jpg(
         self, width=4096, height=4096, filename="large_image.jpg", quality=95

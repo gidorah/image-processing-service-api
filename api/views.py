@@ -70,7 +70,7 @@ class SourceImageDetailView(generics.RetrieveAPIView):
     """
 
     serializer_class = SourceImageDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     def get_queryset(self):
         """
@@ -122,7 +122,7 @@ class TransformedImageDetailView(generics.RetrieveAPIView):
     """
 
     serializer_class = TransformedImageDetailSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
 
     def get_queryset(self):
         """

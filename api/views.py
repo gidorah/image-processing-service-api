@@ -4,12 +4,10 @@ from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.models import SourceImage, TransformationTask, TransformedImage
 from api.permissions import IsOwner
 from api.serializers import (
-    RegisterSerializer,
     SourceImageDetailSerializer,
     SourceImageListSerializer,
     TransformationTaskSerializer,
@@ -20,34 +18,6 @@ from api.serializers import (
 from image_processor.tasks import apply_transformations
 
 logger = logging.getLogger(__name__)
-
-
-def get_tokens_for_user(user) -> dict[str, str]:
-    """
-    Get the access and refresh tokens for a user.
-    """
-    refresh = RefreshToken.for_user(user)
-
-    return {
-        "refresh": str(refresh),
-        "access": str(refresh.access_token),
-    }
-
-
-@api_view(["POST"])
-@permission_classes([permissions.AllowAny])
-def register_user(request) -> Response:
-    """
-    API view for user registration.
-    """
-
-    serializer = RegisterSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.save()  # Returns the user instance
-        # Tokens are now handled by dj-rest-auth in HttpOnly cookies
-        return Response({"user": serializer.data}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class SourceImageListView(generics.ListAPIView):
     """

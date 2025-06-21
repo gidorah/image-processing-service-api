@@ -37,7 +37,6 @@ urlpatterns = [
     path("api/auth/", include("dj_rest_auth.urls")),
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
     # dj-rest-auth endpoints for cookie-based authentication
-    path("api/register/", views.register_user, name="register"),
     path("api/images/", views.SourceImageListView.as_view(), name="source_image_list"),
     path(
         route="api/images/<int:pk>/",

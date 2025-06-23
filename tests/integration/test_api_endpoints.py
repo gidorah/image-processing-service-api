@@ -428,7 +428,6 @@ class APIThrottlingTests(APITestCase):
                 "password2": f"a-very-strong-password-{i}",
             }
             response = self.client.post(self.register_url, user_data)
-            print("response.data: ", response.data)
             if i < self.anon_throttle_limit:
                 self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             else:

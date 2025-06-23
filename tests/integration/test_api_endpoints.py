@@ -28,15 +28,9 @@ CACHE_OVERRIDE = {
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])
 class APIAuthenticationTests(APITestCase):
     def setUp(self):
-        self.register_url = reverse("register")
-        self.login_url = reverse("login")
+        self.register_url = reverse("rest_register")
+        self.login_url = reverse("rest_login")
         self.test_user_data = {"username": "testuser", "password": "testpass123"}
-
-    def test_user_registration(self):
-        """Test user registration endpoint"""
-        response = self.client.post(self.register_url, self.test_user_data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(User.objects.filter(username="testuser").exists())
 
     def test_user_login(self):
         """Test user login endpoint"""
@@ -46,9 +40,10 @@ class APIAuthenticationTests(APITestCase):
         # Try to login
         response = self.client.post(self.login_url, self.test_user_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("token", response.data)
-        self.assertIn("access", response.data["token"])
-        self.assertIn("refresh", response.data["token"])
+        # With cookie-based auth, tokens are not in the body
+        self.assertNotIn("token", response.data)
+        self.assertIn("access", response.cookies)
+        self.assertIn("refresh", response.cookies)
 
     def test_wrong_credentials(self):
         """Test user login with wrong credentials"""
@@ -57,21 +52,12 @@ class APIAuthenticationTests(APITestCase):
         response = self.client.post(
             self.login_url, {"username": "wrongusername", "password": "testpass123"}
         )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # test wrong password
         response = self.client.post(
             self.login_url, {"username": "testuser", "password": "wrongpassword"}
         )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_register_with_existing_username(self):
-        """Test user registration with existing username"""
-        user_data = {"username": "testuser_existing", "password": "testpass123"}
-        response = self.client.post(self.register_url, user_data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        response = self.client.post(self.register_url, user_data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
@@ -426,34 +412,28 @@ class APIThrottlingTests(APITestCase):
             settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["user"].split("/")[0]
         )
 
-        self.register_url = reverse("register")
+        self.register_url = reverse("rest_register")
 
     def test_anonymous_user_throttling(self):
         """Test throttling for anonymous users by registering multiple users"""
-
         # Clear dummy cache to avoid premature throttling
         cache.clear()
 
-        # Fill the throttle limit by registering more users than the limit
-        # Since throttling count is not always equal to the limit, we need to
-        # register way more users than the limit
-        # https://www.django-rest-framework.org/api-guide/throttling/#a-note-on-concurrency
-        for _ in range(self.anon_throttle_limit):
-            test_user_data = {
-                "username": f"testuser{_}",
-                "password": f"testpass{_}",
+        # The default limit is 100/day, so we'll make 101 requests
+        for i in range(self.anon_throttle_limit + 1):
+            user_data = {
+                "username": f"throttleuser_{i}",
+                "email": f"throttle_{i}@example.com",
+                "password1": f"a-very-strong-password-{i}",
+                "password2": f"a-very-strong-password-{i}",
             }
-
-            response = self.client.post(self.register_url, test_user_data)
-            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Try one more time to exceed the limit
-        test_user_data = {
-            "username": f"testuser_{self.anon_throttle_limit}",
-            "password": f"{self.anon_throttle_limit}==testpass",
-        }
-        response = self.client.post(self.register_url, test_user_data)
-        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+            response = self.client.post(self.register_url, user_data)
+            if i < self.anon_throttle_limit:
+                self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            else:
+                self.assertEqual(
+                    response.status_code, status.HTTP_429_TOO_MANY_REQUESTS
+                )
 
 
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])

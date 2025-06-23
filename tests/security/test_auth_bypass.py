@@ -1,5 +1,6 @@
 from django.urls import reverse
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from tests.security.base import SecurityTestBase
 
@@ -181,21 +182,21 @@ class AuthBypassTest(SecurityTestBase):
     def test_token_obtain_pair_without_credentials_rejected(self):
         """Test that token obtain endpoint rejects requests without valid credentials"""
         # Try to get token without providing username/password
-        response = self.client.post(reverse("token_obtain_pair"), {})
+        response = self.client.post(reverse("rest_login"), {})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # Try with invalid credentials
         response = self.client.post(
-            reverse("token_obtain_pair"),
+            reverse("rest_login"),
             {"username": "nonexistent", "password": "wrongpassword"},
         )
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_token_refresh_without_valid_token_rejected(self):
         """Test that token refresh endpoint rejects requests without valid tokens"""
         # Try to refresh without providing refresh token
         response = self.client.post(reverse("token_refresh"), {})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Try with invalid refresh token
         response = self.client.post(
@@ -205,7 +206,8 @@ class AuthBypassTest(SecurityTestBase):
 
     def test_mixed_case_bearer_prefix_rejected(self):
         """Test that mixed case Bearer prefix is rejected"""
-        tokens = self.get_tokens_for_user(self.user_a)
+        refresh = RefreshToken.for_user(self.user_a)
+        token = str(refresh.access_token)
 
         mixed_cases = [
             "Bearer",
@@ -217,7 +219,7 @@ class AuthBypassTest(SecurityTestBase):
 
         for case in mixed_cases:
             with self.subTest(case=case):
-                self.client.credentials(HTTP_AUTHORIZATION=f"{case} {tokens['access']}")
+                self.client.credentials(HTTP_AUTHORIZATION=f"{case} {token}")
                 response = self.client.get(reverse("source_image_list"))
                 # Only 'Bearer' should work, all others should fail
                 if case == "Bearer":
@@ -227,13 +229,14 @@ class AuthBypassTest(SecurityTestBase):
 
     def test_extra_spaces_in_auth_header_handled(self):
         """Test that extra spaces in authorization headers are handled correctly"""
-        tokens = self.get_tokens_for_user(self.user_a)
+        refresh = RefreshToken.for_user(self.user_a)
+        token = str(refresh.access_token)
 
         spaced_headers = [
-            f"  Bearer {tokens['access']}",  # Leading spaces
-            f"Bearer  {tokens['access']}",  # Extra space after Bearer
-            f"Bearer {tokens['access']}  ",  # Trailing spaces
-            f"  Bearer  {tokens['access']}  ",  # Multiple spaces
+            f"  Bearer {token}",  # Leading spaces
+            f"Bearer  {token}",  # Extra space after Bearer
+            f"Bearer {token}  ",  # Trailing spaces
+            f"  Bearer  {token}  ",  # Multiple spaces
         ]
 
         for header in spaced_headers:

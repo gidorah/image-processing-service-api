@@ -35,10 +35,12 @@ class CompleteUserFlowTests(APITestCase):
         """Set up test data."""
         self.username = "testuser"
         self.password = "TestPass123!"
+        self.email = "testuser@example.com"
 
         self.registration_data = {
             "username": self.username,
-            "password": self.password,
+            "email": self.email,
+            "password1": self.password,
             "password2": self.password,
         }
         self.login_data = {
@@ -60,7 +62,7 @@ class CompleteUserFlowTests(APITestCase):
     def test_complete_user_flow(self):
         """Test the complete user flow: registration → login → upload → transform."""
         # 1. User Registration
-        register_url = reverse("register")
+        register_url = reverse("rest_register")
         response = self.client.post(register_url, self.registration_data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -68,16 +70,16 @@ class CompleteUserFlowTests(APITestCase):
         self.assertTrue(user.exists())
 
         # 2. User Login
-        login_url = reverse("login")
+        login_url = reverse("rest_login")
         response = self.client.post(login_url, self.login_data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("token", response.data)
-        self.assertIn("access", response.data["token"])
-        self.assertIn("refresh", response.data["token"])
+        # With cookie-based auth, tokens are in HttpOnly cookies, not the response body
+        self.assertNotIn("token", response.data)
+        self.assertIn("access", response.cookies)
+        self.assertIn("refresh", response.cookies)
 
-        # Set token for authenticated requests
-        token = response.data["token"]["access"]
-        self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+        # The test client will automatically handle the session cookies for subsequent
+        # requests, so no need to manually set the Authorization header.
 
         # 3. Image Upload
         upload_url = reverse("source_image_upload")

@@ -104,10 +104,12 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": os.getenv("ANON_THROTTLE_RATE", "100/day"),
         "user": os.getenv("USER_THROTTLE_RATE", "1000/day"),
+        "dj_rest_auth": os.getenv("ANON_THROTTLE_RATE", "100/day"),
     },
 }
 

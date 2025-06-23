@@ -44,7 +44,7 @@ class CompleteUserFlowTests(APITestCase):
             "password2": self.password,
         }
         self.login_data = {
-            "username": self.username,
+            "email": self.email,
             "password": self.password,
         }
 

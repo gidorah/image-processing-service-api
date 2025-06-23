@@ -30,7 +30,11 @@ class APIAuthenticationTests(APITestCase):
     def setUp(self):
         self.register_url = reverse("rest_register")
         self.login_url = reverse("rest_login")
-        self.test_user_data = {"username": "testuser", "password": "testpass123"}
+        self.test_user_data = {
+            "username": "testuser",
+            "email": "testuser@example.com",
+            "password": "testpass123",
+        }
 
     def test_user_login(self):
         """Test user login endpoint"""
@@ -50,13 +54,15 @@ class APIAuthenticationTests(APITestCase):
 
         # test wrong username
         response = self.client.post(
-            self.login_url, {"username": "wrongusername", "password": "testpass123"}
+            self.login_url,
+            {"email": "wrongusername@example.com", "password": "testpass123"},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         # test wrong password
         response = self.client.post(
-            self.login_url, {"username": "testuser", "password": "wrongpassword"}
+            self.login_url,
+            {"email": "testuser@example.com", "password": "wrongpassword"},
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -440,8 +446,12 @@ class APIThrottlingTests(APITestCase):
 class APIPermissionTests(APITestCase):
     def setUp(self):
         # Create two users
-        self.user1 = User.objects.create_user(username="user1", password="testpass123")
-        self.user2 = User.objects.create_user(username="user2", password="testpass123")
+        self.user1 = User.objects.create_user(
+            username="user1", email="user1@example.com", password="testpass123"
+        )
+        self.user2 = User.objects.create_user(
+            username="user2", email="user2@example.com", password="testpass123"
+        )
 
         # Create resources for user1
         self.source_image1 = SourceImage.objects.create(

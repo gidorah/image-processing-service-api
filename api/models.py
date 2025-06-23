@@ -30,6 +30,8 @@ class User(AbstractUser):
     to upcoming authentication requirements
     """
 
+    email = models.EmailField(unique=True, null=False, blank=False)
+
     def __str__(self) -> str:
         return self.username
 

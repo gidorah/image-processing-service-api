@@ -1,6 +1,6 @@
 django==5.1.7
 djangorestframework==3.16.0
-djangorestframework-simplejwt==5.3.1
+djangorestframework-simplejwt[crypto]==5.5.0
 dj-rest-auth==6.0.0
 django-allauth==0.61.1
 django-cors-headers==4.3.1

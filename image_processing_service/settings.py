@@ -117,6 +117,7 @@ REST_AUTH = {
     "JWT_AUTH_REFRESH_COOKIE": "refresh",
     "JWT_AUTH_HTTPONLY": True,
     "JWT_AUTH_SAMESITE": "Lax",
+    "JWT_AUTH_SECURE": not DEBUG,
 }
 
 ROOT_URLCONF = "image_processing_service.urls"

@@ -71,7 +71,9 @@ class APIAuthenticationTests(APITestCase):
 class APIImageUploadTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", password="testpass123"
+            username="testuser",
+            email="testuser@example.com",
+            password="testpass123",
         )
         self.client.force_authenticate(user=self.user)
         self.upload_url = reverse("source_image_upload")
@@ -231,7 +233,9 @@ class APIImageUploadTests(APITestCase):
 class APITransformationTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", password="testpass123"
+            username="testuser",
+            email="testuser@example.com",
+            password="testpass123",
         )
         self.client.force_authenticate(user=self.user)
 
@@ -332,7 +336,9 @@ class APITransformationTests(APITestCase):
 class APIImageRetrievalTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="testuser", password="testpass123"
+            username="testuser",
+            email="testuser@example.com",
+            password="testpass123",
         )
         self.client.force_authenticate(user=self.user)
 
@@ -447,10 +453,14 @@ class APIPermissionTests(APITestCase):
     def setUp(self):
         # Create two users
         self.user1 = User.objects.create_user(
-            username="user1", email="user1@example.com", password="testpass123"
+            username="user1",
+            email="user1@example.com",
+            password="testpass123",
         )
         self.user2 = User.objects.create_user(
-            username="user2", email="user2@example.com", password="testpass123"
+            username="user2",
+            email="user2@example.com",
+            password="testpass123",
         )
 
         # Create resources for user1
@@ -562,7 +572,9 @@ class APIPermissionTests(APITestCase):
 class APITransformationTaskViewSetTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="taskuser", password="testpass123"
+            username="taskuser",
+            email="taskuser@example.com",
+            password="testpass123",
         )
         self.client.force_authenticate(user=self.user)
 

@@ -12,8 +12,6 @@ from rest_framework.test import APITestCase
 from api.models import (
     SourceImage,
     TaskStatus,
-    TransformationTask,
-    TransformedImage,
     User,
 )
 

@@ -30,12 +30,12 @@ class User(AbstractUser):
     to upcoming authentication requirements
     """
 
-    email = models.EmailField(unique=True, null=False, blank=False)
+    email = models.EmailField(
+        unique=True, null=False, blank=False, verbose_name="email address"
+    )
 
     def __str__(self) -> str:
         return self.username
-
-    pass
 
 
 def unique_image_path(instance, filename):

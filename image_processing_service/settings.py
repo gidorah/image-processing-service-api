@@ -249,6 +249,8 @@ AUTH_USER_MODEL = "api.User"
 ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_VERIFICATION = "none"  # "mandatory" or "optional" in prod
+
 
 # Use django's default model backend for admin logins/permissions &
 # allauth's backend so that dj-rest-auth (which delegates to the standard

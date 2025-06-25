@@ -58,11 +58,9 @@ jobs:
 
       # Migrations run automatically in Django's test mode, but keeping
       # this step makes it explicit and future-safe.
-      - name: Make & apply migrations
-        run: python manage.py migrate --noinput
-
       - name: Run test suite with coverage
         env:
+          DJANGO_SECRET_KEY: dummy
           DJANGO_SETTINGS_MODULE: image_processing_service.settings
           # Database / cache settings match docker-compose defaults
           DB_HOST: localhost
@@ -71,6 +69,11 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: password
           CELERY_BROKER_URL: redis://localhost:6379/0
+          # --- dummy AWS values to silence S3 checks ---
+          AWS_ACCESS_KEY_ID: dummy
+          AWS_SECRET_ACCESS_KEY: dummy
+          AWS_STORAGE_BUCKET_NAME: dummy-bucket
+          AWS_S3_REGION_NAME: us-east-1
         run: |
           coverage run manage.py test
           coverage xml

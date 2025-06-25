@@ -1,0 +1,94 @@
+name: Django Test Suite
+
+on:
+  push:
+    branches: [ main, dev, "**" ]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    # Database & cache services that mirror local docker-compose.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: postgres
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7
+        ports: [ "6379:6379" ]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    strategy:
+      matrix:
+        python-version: [ "3.13" ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install system libs required by Pillow
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libjpeg-dev zlib1g-dev
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install coverage
+
+      # Migrations run automatically in Django's test mode, but keeping
+      # this step makes it explicit and future-safe.
+      - name: Run test suite with coverage
+        env:
+          DJANGO_SECRET_KEY: dummy
+          DJANGO_SETTINGS_MODULE: image_processing_service.settings
+          DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+          ALLOWED_REFERERS: "http://localhost:8008/ http://localhost:8000/"
+          # Database / cache settings match docker-compose defaults
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: postgres
+          DB_USER: postgres
+          DB_PASSWORD: password
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          # --- dummy AWS values to silence S3 checks ---
+          AWS_ACCESS_KEY_ID: dummy
+          AWS_SECRET_ACCESS_KEY: dummy
+          AWS_STORAGE_BUCKET_NAME: dummy-bucket
+          AWS_S3_REGION_NAME: us-east-1
+          LOG_FILE_PATH: ./django.dev.local.log
+          # Security Configuration
+          SECURE_SSL_REDIRECT: False
+          SESSION_COOKIE_SECURE: False
+          CSRF_COOKIE_SECURE: False
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: False
+
+        run: |
+          coverage run manage.py test
+          coverage xml
+
+      # Optional: publish coverage to Codecov
+      - uses: codecov/codecov-action@v4
+        if: ${{ always() }}   # still upload even when tests fail for debugging
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

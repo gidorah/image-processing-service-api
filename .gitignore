@@ -60,3 +60,4 @@ tests/test_files/
 
 # Copilot instructions
 .github/copilot-instructions.md
+.coverage

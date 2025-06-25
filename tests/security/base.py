@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime, timedelta
+import os
 
 import jwt
 import numpy as np
@@ -76,6 +77,9 @@ class SecurityTestBase(TestCase):
 
         # Create a Pillow Image object from the NumPy array
         img = Image.fromarray(random_data, "RGB")
+
+        # Ensure parent directory exists (CI runners start with a clean workspace)
+        os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
 
         img.save(
             filename, quality=quality, subsampling=0

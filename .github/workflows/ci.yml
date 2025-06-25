@@ -77,6 +77,12 @@ jobs:
           AWS_STORAGE_BUCKET_NAME: dummy-bucket
           AWS_S3_REGION_NAME: us-east-1
           LOG_FILE_PATH: ./django.dev.local.log
+          # Security Configuration
+          SECURE_SSL_REDIRECT: False
+          SESSION_COOKIE_SECURE: False
+          CSRF_COOKIE_SECURE: False
+          SECURE_HSTS_INCLUDE_SUBDOMAINS: False
+
         run: |
           coverage run manage.py test
           coverage xml

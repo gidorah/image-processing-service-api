@@ -62,6 +62,8 @@ jobs:
         env:
           DJANGO_SECRET_KEY: dummy
           DJANGO_SETTINGS_MODULE: image_processing_service.settings
+          DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0
+          ALLOWED_REFERERS: "http://localhost:8008/ http://localhost:8000/"
           # Database / cache settings match docker-compose defaults
           DB_HOST: localhost
           DB_PORT: 5432

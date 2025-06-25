@@ -74,6 +74,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: dummy
           AWS_STORAGE_BUCKET_NAME: dummy-bucket
           AWS_S3_REGION_NAME: us-east-1
+          LOG_FILE_PATH: ./django.dev.local.log
         run: |
           coverage run manage.py test
           coverage xml

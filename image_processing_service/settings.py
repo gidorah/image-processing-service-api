@@ -110,6 +110,7 @@ REST_FRAMEWORK = {
         "user": os.getenv("USER_THROTTLE_RATE", "1000/day"),
         "dj_rest_auth": os.getenv("ANON_THROTTLE_RATE", "100/day"),
     },
+    "EXCEPTION_HANDLER": "api.exception_handlers.custom_exception_handler",
 }
 
 REST_AUTH = {
@@ -119,6 +120,7 @@ REST_AUTH = {
     "JWT_AUTH_HTTPONLY": True,
     "JWT_AUTH_SAMESITE": "Lax",
     "JWT_AUTH_SECURE": not DEBUG,
+    "REGISTER_SERIALIZER": "api.auth.serializers.CustomRegisterSerializer",
 }
 
 ROOT_URLCONF = "image_processing_service.urls"

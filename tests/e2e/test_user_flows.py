@@ -141,3 +141,11 @@ class CompleteUserFlowTests(APITestCase):
         results = response.data["results"]
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["id"], transformed_image_id)
+        # 8. List transformation tasks for the image
+        list_tasks_url = reverse(
+            "transformation_task_list_by_image", kwargs={"pk": source_image.pk}
+        )
+        response = self.client.get(list_tasks_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 1)
+        self.assertEqual(response.data["results"][0]["id"], task_id)

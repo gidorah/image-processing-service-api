@@ -63,4 +63,9 @@ urlpatterns = [
         view=views.create_transformed_image,
         name="create_transformed_image",
     ),
+    path(
+        route="api/images/<int:pk>/tasks/",
+        view=views.TransformationTaskListByImageView.as_view(),
+        name="transformation_task_list_by_image",
+    ),
 ]

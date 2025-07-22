@@ -19,6 +19,7 @@ from image_processor.tasks import apply_transformations
 
 logger = logging.getLogger(__name__)
 
+
 class SourceImageListView(generics.ListAPIView):
     """
     API view for listing and source images.
@@ -152,3 +153,22 @@ def create_transformed_image(request, pk):
 
     # Return data instead of validated_data to include the task id
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TransformationTaskListByImageView(generics.ListAPIView):
+    """
+    API view for listing transformation tasks for a specific image.
+    """
+
+    serializer_class = TransformationTaskSerializer
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        """
+        Return only transformation tasks for the given image
+        owned by the current user.
+        """
+        image_id = self.kwargs.get("pk")
+        return TransformationTask.objects.filter(
+            owner=self.request.user, original_image__id=image_id
+        )

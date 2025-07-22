@@ -228,7 +228,6 @@ class APIImageUploadTests(APITestCase):
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-
 @override_settings(CACHES=CACHE_OVERRIDE["CACHES"])
 class APITransformationTests(APITestCase):
     def setUp(self):
@@ -642,3 +641,103 @@ class APITransformationTaskViewSetTests(APITestCase):
         url = reverse("task-detail", kwargs={"pk": non_existent_pk})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+@override_settings(CACHES=CACHE_OVERRIDE["CACHES"])
+class APITransformationTaskListByImageTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser",
+            email="testuser@example.com",
+            password="testpass123",
+        )
+        self.client.force_authenticate(user=self.user)
+
+        self.source_image = SourceImage.objects.create(
+            owner=self.user,
+            file=SimpleUploadedFile(
+                name="test_image.jpg",
+                content=b"fake image content",
+                content_type="image/jpeg",
+            ),
+            file_name="test_image",
+            description="Test image",
+        )
+
+        self.task1 = TransformationTask.objects.create(
+            owner=self.user,
+            original_image=self.source_image,
+            transformations=[{"operation": "grayscale"}],
+        )
+        self.task2 = TransformationTask.objects.create(
+            owner=self.user,
+            original_image=self.source_image,
+            transformations=[{"operation": "rotate", "params": {"angle": 90}}],
+        )
+
+        # Create another image and task for a different user to test permissions
+        self.other_user = User.objects.create_user(
+            username="otheruser",
+            email="otheruser@example.com",
+            password="otherpass",
+        )
+        self.other_source_image = SourceImage.objects.create(
+            owner=self.other_user,
+            file=SimpleUploadedFile(
+                name="other_test_image.jpg",
+                content=b"other fake image content",
+                content_type="image/jpeg",
+            ),
+        )
+        self.other_task = TransformationTask.objects.create(
+            owner=self.other_user,
+            original_image=self.other_source_image,
+            transformations=[{"operation": "blur"}],
+        )
+
+    def test_list_tasks_for_image(self):
+        """
+        Test that the endpoint returns the correct list of transformation tasks
+        for a specific image.
+        """
+        url = reverse(
+            "transformation_task_list_by_image",
+            kwargs={"pk": self.source_image.pk},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 2)
+        task_ids = [task["id"] for task in response.data["results"]]
+        self.assertIn(self.task1.id, task_ids)
+        self.assertIn(self.task2.id, task_ids)
+
+    def test_list_tasks_for_image_with_no_tasks(self):
+        """
+        Test that the endpoint returns an empty list for an image
+        with no transformation tasks.
+        """
+        new_image = SourceImage.objects.create(
+            owner=self.user,
+            file=SimpleUploadedFile(
+                name="new_image.jpg",
+                content=b"new fake image content",
+                content_type="image/jpeg",
+            ),
+        )
+        url = reverse("transformation_task_list_by_image", kwargs={"pk": new_image.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 0)
+
+    def test_user_cannot_list_tasks_for_other_user_image(self):
+        """
+        Test that a user cannot list tasks for an image they do not own.
+        """
+        url = reverse(
+            "transformation_task_list_by_image",
+            kwargs={"pk": self.other_source_image.pk},
+        )
+        response = self.client.get(url)
+        # The view's queryset should return nothing, so the list will be empty
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 0)

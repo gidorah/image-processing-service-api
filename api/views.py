@@ -15,6 +15,7 @@ from api.serializers import (
     TransformedImageListSerializer,
     UploadImageSerializer,
 )
+from api.pagination import ReverseCursorPagination
 from image_processor.tasks import apply_transformations
 
 logger = logging.getLogger(__name__)
@@ -162,6 +163,7 @@ class TransformationTaskListByImageView(generics.ListAPIView):
 
     serializer_class = TransformationTaskSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+    pagination_class = ReverseCursorPagination
 
     def get_queryset(self):
         """
